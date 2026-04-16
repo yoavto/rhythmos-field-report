@@ -1,0 +1,1422 @@
+<!DOCTYPE html> 
+<html dir="rtl" lang="he">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#134F5C">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Field Report">
+<title>Rhythmos Field Report</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon_192.png">
+<link rel="icon" type="image/png" href="favicon.png">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif}
+:root{
+  --teal:#134F5C;--teal-dark:#0d3840;--crimson:#8A0909;--crimson-light:#a50b0b;
+  --bg:#f5f5f5;--white:#fff;--gray:#666;--light-gray:#e0e0e0;--border:#ddd;
+  --shadow:0 2px 8px rgba(0,0,0,.18);--radius:10px;
+}
+body{background:var(--bg);color:#222;overflow:hidden;height:100dvh;width:100vw}
+
+/* ── SCREENS ── */
+.screen{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column}
+.hidden{display:none!important}
+
+/* ── LOGIN ── */
+#screen-login{background:var(--teal);align-items:center;justify-content:center}
+.login-box{background:var(--white);border-radius:18px;padding:32px 28px;width:min(360px,92vw);
+  box-shadow:0 8px 32px rgba(0,0,0,.3);display:flex;flex-direction:column;gap:14px;align-items:center}
+.login-logo{width:80px;height:80px;border-radius:50%;object-fit:cover}
+.login-title{font-size:20px;font-weight:700;color:var(--teal);text-align:center}
+.login-sub{font-size:13px;color:var(--gray);text-align:center}
+.login-box input[type=email],.login-box input[type=password]{
+  width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:8px;
+  font-size:15px;direction:ltr;text-align:left}
+.login-box input:focus{outline:none;border-color:var(--teal)}
+.remember-row{width:100%;display:flex;align-items:center;gap:8px;font-size:14px;color:var(--gray)}
+.remember-row input{width:16px;height:16px;accent-color:var(--teal)}
+.btn-login{width:100%;padding:13px;background:var(--teal);color:var(--white);
+  border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer}
+.btn-login:hover{background:var(--teal-dark)}
+.error-text{color:var(--crimson);font-size:13px;text-align:center;min-height:18px}
+
+/* ── TOP BAR ── */
+.top-bar{
+  background:var(--teal);color:var(--white);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 12px;height:54px;flex-shrink:0;
+  box-shadow:0 2px 6px rgba(0,0,0,.25);z-index:100
+}
+.top-logo{width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0}
+.top-title{font-size:15px;font-weight:700;color:var(--white);flex:1;text-align:center}
+.btn-back{
+  padding:6px 12px;background:transparent;border:1.5px solid var(--crimson);
+  border-radius:6px;color:#ccc;font-size:13px;cursor:pointer;white-space:nowrap
+}
+.btn-back:hover{background:rgba(255,255,255,.1)}
+
+/* ── MAP ── */
+#map{flex:1;width:100%}
+#map-screen{display:flex;flex-direction:column;position:fixed;inset:0;z-index:10}
+.bottom-bar{
+  background:var(--white);border-top:1px solid var(--border);
+  display:flex;gap:6px;padding:8px 8px;overflow-x:auto;flex-shrink:0;
+  box-shadow:0 -2px 8px rgba(0,0,0,.12)
+}
+.bottom-bar::-webkit-scrollbar{height:0}
+.fab-btn{
+  flex-shrink:0;padding:9px 14px;border:none;border-radius:20px;
+  font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;
+  background:var(--teal);color:var(--white);transition:opacity .15s
+}
+.fab-btn:hover{opacity:.85}
+.fab-btn:active{opacity:.7}
+.fab-main{background:var(--crimson);font-size:14px;padding:9px 18px}
+.fab-active{outline:2.5px solid #FFD700;outline-offset:2px}
+
+/* ── MAP TYPE TOGGLE ── */
+.map-toggle{
+  position:absolute;top:66px;left:12px;z-index:50;
+  background:var(--white);border:1.5px solid var(--border);border-radius:8px;
+  overflow:hidden;box-shadow:var(--shadow)
+}
+.map-toggle button{
+  display:block;width:100%;padding:8px 14px;background:none;border:none;
+  font-size:13px;cursor:pointer;color:#333;text-align:right
+}
+.map-toggle button.active{background:var(--teal);color:var(--white)}
+
+/* ── GPS BUTTON ── */
+.gps-btn{
+  position:absolute;bottom:74px;left:12px;z-index:50;
+  width:40px;height:40px;border-radius:50%;
+  background:var(--white);border:1.5px solid var(--border);
+  box-shadow:var(--shadow);cursor:pointer;font-size:18px;
+  display:flex;align-items:center;justify-content:center
+}
+
+/* ── MODALS ── */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;
+  display:flex;align-items:flex-end;justify-content:center
+}
+.modal-sheet{
+  background:var(--white);border-radius:18px 18px 0 0;
+  width:100%;max-height:92dvh;display:flex;flex-direction:column;
+  overflow:hidden;animation:slideUp .25s ease
+}
+.modal-sheet-center{
+  background:var(--white);border-radius:18px;
+  width:min(400px,94vw);max-height:88dvh;display:flex;flex-direction:column;
+  overflow:hidden;animation:fadeIn .2s ease;margin:auto
+}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+.modal-header{
+  background:var(--teal);color:var(--white);
+  padding:14px 16px;display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0
+}
+.modal-header h2{font-size:16px;font-weight:700}
+.btn-x{background:none;border:none;color:var(--white);font-size:20px;cursor:pointer;
+  padding:0 4px;line-height:1}
+
+/* ── FORM ── */
+.form-scroll{flex:1;overflow-y:auto;padding:16px}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:13px;font-weight:600;color:var(--gray);margin-bottom:4px}
+.form-group input,.form-group select,.form-group textarea{
+  width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;
+  font-size:14px;background:var(--white)
+}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{
+  outline:none;border-color:var(--teal)
+}
+.form-group textarea{resize:vertical;min-height:70px}
+.field-display{
+  padding:10px 12px;background:var(--bg);border:1.5px solid var(--border);
+  border-radius:8px;font-size:13px;color:#444
+}
+.btn-row{display:flex;gap:8px;margin-top:4px}
+.btn-secondary{
+  padding:9px 16px;background:var(--white);color:var(--teal);
+  border:1.5px solid var(--teal);border-radius:8px;font-size:14px;
+  cursor:pointer;font-weight:500
+}
+.btn-secondary:hover{background:#f0f7f9}
+.btn-primary{
+  padding:9px 18px;background:var(--teal);color:var(--white);
+  border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600;
+  display:flex;align-items:center;gap:6px
+}
+.btn-primary:hover{background:var(--teal-dark)}
+.form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;padding-top:12px;border-top:1px solid var(--border)}
+.photo-area{display:flex;flex-direction:column;gap:8px}
+.photo-preview{max-width:100%;max-height:180px;border-radius:8px;object-fit:cover}
+.btn-small{padding:5px 12px;font-size:12px;background:var(--crimson);color:var(--white);border:none;border-radius:6px;cursor:pointer}
+
+/* ── INFO POPOVER ── */
+#popover{
+  position:fixed;bottom:76px;left:50%;transform:translateX(-50%);
+  background:var(--white);border-radius:14px;box-shadow:0 4px 20px rgba(0,0,0,.3);
+  width:min(340px,92vw);z-index:150;padding:14px;
+  display:flex;flex-direction:column;gap:8px
+}
+.popover-header{display:flex;justify-content:space-between;align-items:center}
+.popover-type{font-weight:700;font-size:15px;color:var(--teal)}
+.popover-row{font-size:13px;color:#444;display:flex;gap:6px}
+.popover-label{color:var(--gray);font-size:12px;font-weight:600}
+.popover-photo{max-width:100%;max-height:140px;border-radius:8px;object-fit:cover}
+.popover-actions{display:flex;gap:8px;margin-top:4px}
+.btn-done{padding:8px 14px;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600}
+.btn-done-mark{background:#4CAF50;color:white}
+.btn-done-undo{background:#FF9800;color:white}
+.btn-edit{padding:8px 14px;background:var(--teal);color:white;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600}
+.done-badge{background:#4CAF50;color:white;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700}
+.open-badge{background:#FF9800;color:white;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700}
+
+/* ── LIST ── */
+.list-controls{padding:12px 16px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--border);flex-shrink:0}
+.list-controls select{padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px}
+.sort-btns{display:flex;gap:6px;flex-wrap:wrap}
+.sort-btn{padding:6px 12px;border:1.5px solid var(--border);border-radius:16px;font-size:12px;background:var(--white);cursor:pointer;font-weight:500}
+.sort-btn.active{background:var(--teal);color:white;border-color:var(--teal)}
+.list-scroll{flex:1;overflow-y:auto}
+.list-item{
+  display:flex;align-items:center;gap:10px;padding:12px 16px;
+  border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s
+}
+.list-item:hover{background:#f8f8f8}
+.list-icon{width:32px;height:32px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.list-icon svg{width:28px;height:28px}
+.list-body{flex:1}
+.list-name{font-size:14px;font-weight:600;color:#222}
+.list-meta{font-size:12px;color:var(--gray);margin-top:2px}
+.list-status{flex-shrink:0}
+.pin-btn{background:none;border:none;cursor:pointer;font-size:16px;padding:4px;color:var(--gray)}
+.pin-btn.pinned{color:#FFD700}
+.empty-list{text-align:center;color:var(--gray);padding:32px;font-size:14px}
+
+/* ── FILTER BADGE ── */
+.filter-badge{
+  position:absolute;top:-6px;right:-6px;background:var(--crimson);color:white;
+  border-radius:50%;width:18px;height:18px;font-size:11px;
+  display:flex;align-items:center;justify-content:center;font-weight:700
+}
+.fab-btn{position:relative}
+
+/* ── MAP PICKER OVERLAY ── */
+#picker-overlay{
+  position:fixed;top:54px;left:0;right:0;z-index:400;
+  background:rgba(19,79,92,.92);color:white;
+  padding:12px 16px;display:flex;align-items:center;justify-content:space-between
+}
+#picker-overlay span{font-size:14px;font-weight:600}
+
+/* ── TOAST ── */
+#toast{
+  position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
+  background:#333;color:white;padding:10px 20px;border-radius:24px;
+  font-size:13px;z-index:999;transition:opacity .3s;opacity:0;pointer-events:none
+}
+#toast.show{opacity:1}
+
+/* ── SPINNER ── */
+#spinner{
+  position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:999;
+  display:flex;align-items:center;justify-content:center
+}
+.spinner-ring{
+  width:48px;height:48px;border:4px solid rgba(255,255,255,.3);
+  border-top-color:white;border-radius:50%;animation:spin .8s linear infinite
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── MISC ── */
+.gps-dot{
+  width:14px;height:14px;background:#4285F4;border:2.5px solid white;
+  border-radius:50%;box-shadow:0 0 0 4px rgba(66,133,244,.25)
+}
+</style>
+</head>
+<body>
+
+<!-- SPINNER -->
+<div id="spinner"><div class="spinner-ring"></div></div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- ═══════════════ LOGIN SCREEN ═══════════════ -->
+<div id="screen-login" class="screen hidden">
+  <div class="login-box">
+    <img src="icon_192.png" class="login-logo" alt="לוגו">
+    <div class="login-title">Rhythmos Field Report</div>
+    <div class="login-sub">ניטור שדה במטעים</div>
+    <input type="email" id="inp-email" placeholder="כתובת אימייל" autocomplete="email">
+    <input type="password" id="inp-password" placeholder="סיסמה" autocomplete="current-password">
+    <div class="remember-row">
+      <input type="checkbox" id="chk-remember">
+      <label for="chk-remember">זכור אותי</label>
+    </div>
+    <button class="btn-login" id="btn-login">כניסה</button>
+    <div class="error-text" id="login-error"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ MAP SCREEN ═══════════════ -->
+<div id="screen-map" class="screen hidden" style="position:fixed;inset:0;z-index:10;display:flex;flex-direction:column">
+  <div class="top-bar">
+    <button class="btn-back" id="btn-logout">יציאה ←</button>
+    <span class="top-title">Rhythmos Field Report</span>
+    <img src="icon_192.png" class="top-logo" alt="">
+  </div>
+  <div id="map" style="flex:1"></div>
+
+  <!-- Map type toggle -->
+  <div class="map-toggle" id="map-toggle">
+    <button id="btn-map-road" class="active">מפה</button>
+    <button id="btn-map-sat">לוויין</button>
+  </div>
+
+  <!-- GPS center button -->
+  <button class="gps-btn" id="btn-gps-center" title="מרכז מיקום">📍</button>
+
+  <div class="bottom-bar">
+    <button class="fab-btn" id="btn-filter">🔍 סינון<span id="filter-badge" class="filter-badge hidden">!</span></button>
+    <button class="fab-btn fab-main" id="btn-report">+ דיווח</button>
+    <button class="fab-btn" id="btn-toggle-done">👁 בוצע</button>
+    <button class="fab-btn" id="btn-list">📋 רשימה</button>
+    <button class="fab-btn" id="btn-add-type">+ סוג</button>
+  </div>
+</div>
+
+<!-- Map picker overlay -->
+<div id="picker-overlay" class="hidden">
+  <span>לחץ/י על המפה לבחירת מיקום</span>
+  <button class="btn-small" id="btn-picker-cancel">ביטול</button>
+</div>
+
+<!-- Info popover -->
+<div id="popover" class="hidden">
+  <div class="popover-header">
+    <span class="popover-type" id="pop-type"></span>
+    <button class="btn-x" id="btn-pop-close" style="color:#666;font-size:18px">✕</button>
+  </div>
+  <div class="popover-row"><span class="popover-label">חלקה:</span><span id="pop-plot"></span></div>
+  <div class="popover-row"><span class="popover-label">גידול:</span><span id="pop-crop"></span></div>
+  <div class="popover-row"><span class="popover-label">תאריך:</span><span id="pop-date"></span></div>
+  <div id="pop-notes-row" class="popover-row hidden"><span class="popover-label">הערות:</span><span id="pop-notes"></span></div>
+  <img id="pop-photo" class="popover-photo hidden" alt="תמונה">
+  <div class="popover-actions">
+    <button id="btn-pop-done" class="btn-done btn-done-mark">✓ סמן כבוצע</button>
+    <button id="btn-pop-edit" class="btn-edit">✏ עריכה</button>
+  </div>
+</div>
+
+<!-- ═══════════════ REPORT FORM MODAL ═══════════════ -->
+<div id="modal-form" class="modal-overlay hidden">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <h2 id="form-title">דיווח חדש</h2>
+      <button class="btn-x" id="btn-form-x">✕</button>
+    </div>
+    <div class="form-scroll">
+      <div class="form-group">
+        <label>סוג דיווח</label>
+        <select id="sel-type"></select>
+      </div>
+      <div class="form-group">
+        <label>תאריך ושעה</label>
+        <div class="field-display" id="disp-datetime">—</div>
+      </div>
+      <div class="form-group">
+        <label>גידול</label>
+        <select id="sel-crop">
+          <option value="">בחר גידול</option>
+          <option value="avocado">אבוקדו</option>
+          <option value="pomegranate">רימון</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>חלקה</label>
+        <select id="sel-plot"><option value="">— בחר גידול תחילה —</option></select>
+      </div>
+      <div class="form-group">
+        <label>הערות</label>
+        <textarea id="inp-notes" placeholder="טקסט חופשי..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>תמונה</label>
+        <div class="photo-area">
+          <input type="file" id="inp-photo" accept="image/*" capture="environment" class="hidden">
+          <div class="btn-row">
+            <button class="btn-secondary" id="btn-photo">📷 הוסף תמונה</button>
+            <button class="btn-small hidden" id="btn-remove-photo">הסר</button>
+          </div>
+          <img id="photo-preview" class="photo-preview hidden" alt="">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>מיקום</label>
+        <div class="field-display" id="disp-location">לא נקבע</div>
+        <div class="btn-row" style="margin-top:6px">
+          <button class="btn-secondary" id="btn-loc-gps">📍 מיקום נוכחי</button>
+          <button class="btn-secondary" id="btn-loc-map">🗺 סמן במפה</button>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn-secondary" id="btn-form-cancel">ביטול</button>
+        <button class="btn-primary" id="btn-form-save">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="white"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+          שמור
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ LIST MODAL ═══════════════ -->
+<div id="modal-list" class="modal-overlay hidden">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <h2>רשימת דיווחים</h2>
+      <button class="btn-x" id="btn-list-x">✕</button>
+    </div>
+    <div class="list-controls">
+      <select id="list-filter-type"><option value="">כל הסוגים</option></select>
+      <div class="sort-btns">
+        <button class="sort-btn active" data-sort="type">סוג</button>
+        <button class="sort-btn" data-sort="plot">חלקה</button>
+        <button class="sort-btn" data-sort="status">סטטוס</button>
+        <button class="sort-btn" data-sort="pin">נעוץ</button>
+      </div>
+    </div>
+    <div class="list-scroll" id="list-container"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ FILTER MODAL ═══════════════ -->
+<div id="modal-filter" class="modal-overlay hidden">
+  <div class="modal-sheet-center" style="margin:auto">
+    <div class="modal-header">
+      <h2>סינון</h2>
+      <button class="btn-x" id="btn-filter-x">✕</button>
+    </div>
+    <div class="form-scroll">
+      <div class="form-group">
+        <label>סוג דיווח</label>
+        <select id="filter-type"><option value="">הכל</option></select>
+      </div>
+      <div class="form-group">
+        <label>גידול</label>
+        <select id="filter-crop">
+          <option value="">הכל</option>
+          <option value="avocado">אבוקדו</option>
+          <option value="pomegranate">רימון</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>חלקה</label>
+        <select id="filter-plot"><option value="">הכל</option></select>
+      </div>
+      <div class="form-actions">
+        <button class="btn-secondary" id="btn-filter-clear">נקה סינון</button>
+        <button class="btn-primary" id="btn-filter-apply">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="white"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+          החל
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ ADD TYPE MODAL ═══════════════ -->
+<div id="modal-add-type" class="modal-overlay hidden">
+  <div class="modal-sheet-center" style="margin:auto">
+    <div class="modal-header">
+      <h2>סוג דיווח חדש</h2>
+      <button class="btn-x" id="btn-add-type-x">✕</button>
+    </div>
+    <div class="form-scroll">
+      <div class="form-group">
+        <label>שם הסוג</label>
+        <input type="text" id="inp-type-name" placeholder="שם הסוג...">
+      </div>
+      <div class="form-group">
+        <label>צבע לאייקון</label>
+        <input type="color" id="inp-type-color" value="#FF6B35" style="height:44px;padding:2px 4px">
+      </div>
+      <div class="form-actions">
+        <button class="btn-secondary" id="btn-add-type-cancel">ביטול</button>
+        <button class="btn-primary" id="btn-add-type-save">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="white"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+          שמור
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ FIREBASE ═══════════════ -->
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<!-- Storage not used: photos stored as base64 in Firestore -->
+
+<script>
+// ═══════════════════════════════════════════
+// SERVICE WORKER — unregister on load
+// ═══════════════════════════════════════════
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.getRegistrations().then(regs=>{regs.forEach(r=>r.unregister())});
+}
+
+// ═══════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════
+const FIREBASE_CONFIG = {
+  apiKey:"AIzaSyCBjsg7WIx1hgphfz3nMNJntI8jGwu69QM",
+  authDomain:"rhythmos-field-report.firebaseapp.com",
+  projectId:"rhythmos-field-report",
+  storageBucket:"rhythmos-field-report.firebasestorage.app",
+  messagingSenderId:"846198800330",
+  appId:"1:846198800330:web:aa393722637f90c8531933"
+};
+
+const PREDEFINED_TYPES = [
+  {id:'leak_small', name:'נזילה בשלוחה',    color:'#1565C0', iconKey:'drip'},
+  {id:'break_main', name:'פיצוץ בקו ראשי',  color:'#8A0909', iconKey:'burst'},
+  {id:'support',    name:'עץ דורש תמיכה',   color:'#E65100', iconKey:'cane'},
+  {id:'graft',      name:'עץ דורש הרכבה',   color:'#2E7D32', iconKey:'graft'},
+  {id:'dead',       name:'עץ מת',            color:'#4E342E', iconKey:'dead'},
+];
+
+const PLOTS = {
+  avocado:[
+    'אבוקדו האס 25','אבוקדו ג\'אם 27','אבוקדו BL 1','אבוקדו BL 2',
+    'אבוקדו BL 3','אבוקדו BL 4','אבוקדו BL 5','אבוקדו BL 6',
+    'אבוקדו BL 7','אבוקדו BL 11','אבוקדו 9 ארד','אבוקדו 10 ארד','אבוקדו 12 ארד'
+  ],
+  pomegranate:[
+    'נטע 1','נטע 2','נטע 3','נטע 4','נטע 5','נטע 6','נטע 7','נטע 8',
+    'וונדרפול 1','וונדרפול 2','וונדרפול 3','וונדרפול 4','וונדרפול 5',
+    'וונדרפול 6','וונדרפול 7','וונדרפול 8','וונדרפול 9א','וונדרפול 9ב',
+    'וונדרפול 10א','עמק 10א'
+  ]
+};
+
+const CROP_HEB = {avocado:'אבוקדו', pomegranate:'רימון'};
+
+// ═══════════════════════════════════════════
+// FIREBASE INIT
+// ═══════════════════════════════════════════
+firebase.initializeApp(FIREBASE_CONFIG);
+const auth    = firebase.auth();
+const db      = firebase.firestore();
+// Storage not used
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let map               = null;
+let currentUser       = null;
+let markers           = {};   // id -> google.maps.Marker
+let reports           = {};   // id -> data
+let customTypes       = [];   // [{id,name,color}]
+let filters           = {type:'', crop:'', plot:''};
+let showDoneReports   = true;
+let editingId         = null;
+let formTimestamp     = null;
+let selectedLocation  = null; // {lat,lng}
+let gpsPosition       = null; // {lat,lng}
+let gpsWatcher        = null;
+let gpsMarker         = null;
+let photoFile         = null;
+let photoUrl          = null;
+let popoverReportId   = null;
+let listSort          = 'type';
+let listTypeFilter    = '';
+let pinnedPlots       = [];
+let reportsUnsub      = null;
+let typesUnsub        = null;
+let pickerActive      = false;
+let pickerListener    = null;
+let backCount         = 0;
+let backTimer         = null;
+let mapsReady         = false;
+
+// ═══════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════
+function $id(id){ return document.getElementById(id); }
+function show(id){ $id(id).classList.remove('hidden'); }
+function hide(id){ $id(id).classList.add('hidden'); }
+function showSpinner(){ show('spinner'); }
+function hideSpinner(){ hide('spinner'); }
+
+let toastTimer;
+function toast(msg, dur=2500){
+  const t=$id('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'), dur);
+}
+
+function formatDate(ts){
+  if(!ts) return '—';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString('he-IL')+' '+d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+}
+
+function allTypes(){
+  return [...PREDEFINED_TYPES, ...customTypes];
+}
+
+function getType(typeId){
+  return allTypes().find(t=>t.id===typeId) || {name:typeId, color:'#607D8B', iconKey:'custom'};
+}
+
+// ═══════════════════════════════════════════
+// SVG MARKER ICONS
+// ═══════════════════════════════════════════
+function buildIconSVG(typeId, done, color){
+  const clr = done ? '#9E9E9E' : (color || getType(typeId).color);
+  const shapes = {
+    drip:`
+      <rect x="14" y="9" width="4" height="14" rx="2" fill="white"/>
+      <ellipse cx="16" cy="25" rx="3.5" ry="4.5" fill="#81D4FA"/>
+      <ellipse cx="16" cy="31" rx="2" ry="2.5" fill="#81D4FA" opacity=".65"/>`,
+    burst:`
+      <rect x="7" y="15" width="18" height="7" rx="3" fill="white"/>
+      <line x1="13" y1="13" x2="11" y2="9" stroke="white" stroke-width="2"/>
+      <line x1="16" y1="13" x2="16" y2="8" stroke="white" stroke-width="2"/>
+      <line x1="19" y1="13" x2="21" y2="9" stroke="white" stroke-width="2"/>
+      <ellipse cx="16" cy="11" rx="4" ry="2" fill="#81D4FA" opacity=".8"/>`,
+    cane:`
+      <path d="M19 9 L19 27 Q19 31 15 31" stroke="white" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M19 9 Q19 7 15 7" stroke="white" stroke-width="3" fill="none" stroke-linecap="round"/>`,
+    graft:`
+      <line x1="16" y1="9" x2="16" y2="29" stroke="white" stroke-width="3"/>
+      <path d="M16 9 Q23 7 21 13 Q19 15 16 14 Z" fill="#A5D6A7"/>
+      <rect x="11" y="18" width="10" height="5" fill="white" rx="2"/>
+      <line x1="16" y1="18" x2="16" y2="23" stroke="#F44336" stroke-width="1.5"/>
+      <line x1="11" y1="20.5" x2="21" y2="20.5" stroke="#F44336" stroke-width="1.5"/>`,
+    dead:`
+      <line x1="6" y1="19" x2="26" y2="19" stroke="white" stroke-width="3" stroke-linecap="round"/>
+      <line x1="10" y1="19" x2="8" y2="14" stroke="white" stroke-width="2"/>
+      <line x1="14" y1="19" x2="12" y2="13" stroke="white" stroke-width="2"/>
+      <line x1="19" y1="19" x2="21" y2="13" stroke="white" stroke-width="2"/>
+      <line x1="24" y1="19" x2="26" y2="15" stroke="white" stroke-width="2"/>
+      <line x1="6"  y1="19" x2="4"  y2="23" stroke="white" stroke-width="2"/>
+      <line x1="6"  y1="19" x2="7"  y2="25" stroke="white" stroke-width="2"/>`,
+    custom:`<circle cx="16" cy="19" r="8" fill="white" opacity=".9"/>`
+  };
+  const t = getType(typeId);
+  const shapeKey = t.iconKey || 'custom';
+  const shape = shapes[shapeKey] || shapes.custom;
+  const check = done?`<circle cx="26" cy="8" r="7" fill="#4CAF50"/><path d="M22 8 L25 11 L30 4" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`:'';
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="44" viewBox="0 0 32 44">
+    <path d="M16 0C7 0 0 7 0 16C0 27 16 44 16 44C16 44 32 27 32 16C32 7 25 0 16 0Z" fill="${clr}" stroke="white" stroke-width="1.5"/>
+    ${shape}
+    ${check}
+  </svg>`;
+}
+
+function markerIcon(typeId, done, color){
+  const svg = buildIconSVG(typeId, done, color);
+  return {
+    url:'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(svg),
+    scaledSize: new google.maps.Size(32,44),
+    anchor: new google.maps.Point(16,44)
+  };
+}
+
+// Small icon for list
+function smallIcon(typeId, done, color){
+  const clr = done ? '#9E9E9E' : (color || getType(typeId).color);
+  const t = getType(typeId);
+  return `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="14" cy="14" r="13" fill="${clr}"/>
+    <circle cx="14" cy="14" r="8" fill="white" opacity=".85"/>
+  </svg>`;
+}
+
+// ═══════════════════════════════════════════
+// IMAGE COMPRESSION
+// ═══════════════════════════════════════════
+// Returns base64 data URL compressed to ~250KB for Firestore storage
+function compressImage(file){
+  return new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const MAX=900; let w=img.width,h=img.height;
+        if(w>MAX||h>MAX){if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;}}
+        const canvas=document.createElement('canvas');
+        canvas.width=w; canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        let q=0.75, dataUrl;
+        // Max ~250KB binary = ~333KB base64 string
+        do{dataUrl=canvas.toDataURL('image/jpeg',q);q-=0.08;}
+        while(dataUrl.length>333000 && q>0.1);
+        resolve(dataUrl); // returns full data URL
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ═══════════════════════════════════════════
+// GOOGLE MAPS
+// ═══════════════════════════════════════════
+function initMapCallback(){
+  mapsReady=true;
+  if(currentUser) initMap();
+}
+window.initMapCallback = initMapCallback;
+
+function initMap(){
+  const savedType = localStorage.getItem('mapType')||'roadmap';
+  const savedCenter = JSON.parse(localStorage.getItem('mapCenter')||'null');
+  map = new google.maps.Map($id('map'),{
+    center: savedCenter || {lat:32.0, lng:34.8},
+    zoom:14,
+    mapTypeId: savedType,
+    mapTypeControl:false,
+    fullscreenControl:false,
+    streetViewControl:false,
+    zoomControl:true,
+    zoomControlOptions:{position:google.maps.ControlPosition.LEFT_BOTTOM},
+    clickableIcons:false,
+    gestureHandling:'greedy',
+    disableDoubleClickZoom:true
+  });
+
+  // Update map type buttons
+  updateMapTypeUI(savedType);
+
+  // Save center on move
+  map.addListener('idle',()=>{
+    const c=map.getCenter();
+    localStorage.setItem('mapCenter',JSON.stringify({lat:c.lat(),lng:c.lng()}));
+  });
+
+  // Map click for picker
+  map.addListener('click', e=>{
+    if(pickerActive){
+      selectedLocation={lat:e.latLng.lat(), lng:e.latLng.lng()};
+      updateLocationDisplay();
+      stopPicker();
+      show('modal-form');
+    }
+  });
+
+  // Start GPS
+  startGPS();
+
+  // Load reports
+  listenToReports();
+  listenToCustomTypes();
+  checkAutoDelete();
+}
+
+function updateMapTypeUI(type){
+  $id('btn-map-road').classList.toggle('active', type==='roadmap');
+  $id('btn-map-sat').classList.toggle('active', type==='satellite');
+}
+
+function startGPS(){
+  if(!navigator.geolocation) return;
+  gpsWatcher = navigator.geolocation.watchPosition(pos=>{
+    const lat=pos.coords.latitude, lng=pos.coords.longitude;
+    gpsPosition={lat,lng};
+    if(!gpsMarker){
+      gpsMarker=new google.maps.Marker({
+        position:{lat,lng}, map,
+        icon:{path:google.maps.SymbolPath.CIRCLE, scale:7,
+          fillColor:'#4285F4',fillOpacity:1,
+          strokeColor:'white',strokeWeight:2.5},
+        zIndex:999, title:'מיקומך'
+      });
+    } else {
+      gpsMarker.setPosition({lat,lng});
+    }
+  }, null, {enableHighAccuracy:true, maximumAge:5000});
+}
+
+function centerOnGPS(){
+  if(gpsPosition && map) map.panTo(gpsPosition);
+  else toast('לא נמצא מיקום GPS');
+}
+
+// ═══════════════════════════════════════════
+// FIRESTORE — REPORTS
+// ═══════════════════════════════════════════
+function listenToReports(){
+  if(reportsUnsub) reportsUnsub();
+  reportsUnsub = db.collection('reports').onSnapshot(snap=>{
+    snap.docChanges().forEach(change=>{
+      const id=change.doc.id, data=change.doc.data();
+      if(change.type==='removed'){
+        reports[id]={...data, _deleted:true};
+        removeMarker(id);
+        delete reports[id];
+      } else {
+        reports[id]={...data, id};
+        renderMarker(id);
+      }
+    });
+    refreshListIfOpen();
+  });
+}
+
+function listenToCustomTypes(){
+  if(typesUnsub) typesUnsub();
+  typesUnsub = db.collection('reportTypes').onSnapshot(snap=>{
+    customTypes = snap.docs.map(d=>({id:d.id,...d.data()}));
+    populateTypeSelects();
+  });
+}
+
+function renderMarker(id){
+  const r=reports[id];
+  if(!r||!r.location) return;
+  const visible = shouldShowReport(r);
+
+  if(markers[id]){
+    const t=getType(r.type);
+    markers[id].setIcon(markerIcon(r.type, r.done, t.color));
+    markers[id].setVisible(visible);
+    return;
+  }
+
+  const t=getType(r.type);
+  const marker = new google.maps.Marker({
+    position:{lat:r.location.latitude, lng:r.location.longitude},
+    map,
+    icon:markerIcon(r.type, r.done, t.color),
+    visible,
+    title:t.name
+  });
+
+  // Long press
+  let pressTimer, longPressed=false;
+  const startPress=()=>{longPressed=false; pressTimer=setTimeout(()=>{longPressed=true;openEditForm(id);},650);};
+  const cancelPress=()=>clearTimeout(pressTimer);
+  marker.addListener('mousedown', startPress);
+  marker.addListener('mouseup', cancelPress);
+  marker.addListener('touchstart', startPress);
+  marker.addListener('touchend', cancelPress);
+  marker.addListener('touchmove', cancelPress);
+
+  // Click = info popover
+  marker.addListener('click', ()=>{if(!longPressed) openPopover(id);});
+
+  markers[id]=marker;
+}
+
+function removeMarker(id){
+  if(markers[id]){ markers[id].setMap(null); delete markers[id]; }
+}
+
+function shouldShowReport(r){
+  if(r.done && !showDoneReports) return false;
+  if(filters.type && r.type!==filters.type) return false;
+  if(filters.crop && r.crop!==filters.crop) return false;
+  if(filters.plot && r.plot!==filters.plot) return false;
+  return true;
+}
+
+function refreshMarkerVisibility(){
+  Object.keys(reports).forEach(id=>{
+    if(markers[id]) markers[id].setVisible(shouldShowReport(reports[id]));
+  });
+}
+
+async function checkAutoDelete(){
+  try{
+    const cutoff = firebase.firestore.Timestamp.fromDate(new Date(Date.now()-48*3600*1000));
+    const snap = await db.collection('reports')
+      .where('done','==',true)
+      .where('doneAt','<',cutoff).get();
+    if(snap.empty) return;
+    const batch=db.batch();
+    snap.docs.forEach(d=>batch.delete(d.ref));
+    await batch.commit();
+  }catch(e){ console.warn('auto-delete error',e); }
+}
+
+// ═══════════════════════════════════════════
+// POPOVER
+// ═══════════════════════════════════════════
+function openPopover(id){
+  const r=reports[id];
+  if(!r) return;
+  popoverReportId=id;
+  const t=getType(r.type);
+
+  $id('pop-type').textContent=t.name;
+  $id('pop-plot').textContent=r.plot||'—';
+  $id('pop-crop').textContent=CROP_HEB[r.crop]||r.crop||'—';
+  $id('pop-date').textContent=formatDate(r.timestamp);
+
+  if(r.notes){ show('pop-notes-row'); $id('pop-notes').textContent=r.notes; }
+  else hide('pop-notes-row');
+
+  const popPhoto=$id('pop-photo');
+  if(r.photoUrl){ popPhoto.src=r.photoUrl; show('pop-photo'); }
+  else { popPhoto.src=''; hide('pop-photo'); }
+
+  const doneBtn=$id('btn-pop-done');
+  if(r.done){
+    doneBtn.textContent='↩ בטל בוצע';
+    doneBtn.className='btn-done btn-done-undo';
+  } else {
+    doneBtn.textContent='✓ סמן כבוצע';
+    doneBtn.className='btn-done btn-done-mark';
+  }
+
+  show('popover');
+}
+
+function closePopover(){ hide('popover'); popoverReportId=null; }
+
+// ═══════════════════════════════════════════
+// REPORT FORM
+// ═══════════════════════════════════════════
+function openNewForm(){
+  editingId=null;
+  $id('form-title').textContent='דיווח חדש';
+
+  // Timestamp
+  formTimestamp=new Date();
+  $id('disp-datetime').textContent=formatDate(firebase.firestore.Timestamp.fromDate(formTimestamp));
+
+  // Reset fields
+  $id('sel-type').selectedIndex=0;
+  $id('sel-crop').value='';
+  $id('sel-plot').innerHTML='<option value="">— בחר גידול תחילה —</option>';
+  $id('inp-notes').value='';
+  photoFile=null; photoUrl=null;
+  hide('photo-preview'); $id('photo-preview').src='';
+  hide('btn-remove-photo');
+
+  // Location = GPS if available
+  selectedLocation = gpsPosition ? {...gpsPosition} : null;
+  updateLocationDisplay();
+
+  show('modal-form');
+}
+
+function openEditForm(id){
+  const r=reports[id];
+  if(!r) return;
+  editingId=id;
+  closePopover();
+  $id('form-title').textContent='עריכת דיווח';
+  formTimestamp = r.timestamp ? (r.timestamp.toDate?r.timestamp.toDate():new Date(r.timestamp)) : new Date();
+  $id('disp-datetime').textContent=formatDate(r.timestamp);
+
+  // Type
+  const selType=$id('sel-type');
+  selType.value=r.type;
+
+  // Crop & plot
+  $id('sel-crop').value=r.crop||'';
+  updatePlotOptions(r.crop);
+  setTimeout(()=>{ $id('sel-plot').value=r.plot||''; },50);
+
+  $id('inp-notes').value=r.notes||'';
+
+  // Photo
+  photoFile=null;
+  photoUrl=r.photoUrl||null;
+  if(photoUrl){ $id('photo-preview').src=photoUrl; show('photo-preview'); show('btn-remove-photo'); }
+  else { hide('photo-preview'); hide('btn-remove-photo'); }
+
+  // Location
+  selectedLocation = r.location ? {lat:r.location.latitude, lng:r.location.longitude} : null;
+  updateLocationDisplay();
+
+  show('modal-form');
+}
+
+function closeForm(){ hide('modal-form'); editingId=null; stopPicker(); }
+
+function updateLocationDisplay(){
+  const el=$id('disp-location');
+  if(selectedLocation) el.textContent=`${selectedLocation.lat.toFixed(5)}, ${selectedLocation.lng.toFixed(5)}`;
+  else el.textContent='לא נקבע';
+}
+
+function updatePlotOptions(crop){
+  const sel=$id('sel-plot');
+  sel.innerHTML='<option value="">— בחר חלקה —</option>';
+  if(!crop||!PLOTS[crop]) return;
+  PLOTS[crop].forEach(p=>{ const o=document.createElement('option'); o.value=p; o.textContent=p; sel.appendChild(o); });
+}
+
+async function saveReport(){
+  const typeId=$id('sel-type').value;
+  const crop=$id('sel-crop').value;
+  const plot=$id('sel-plot').value;
+
+  if(!typeId){ toast('יש לבחור סוג דיווח'); return; }
+  if(!selectedLocation){ toast('יש לקבוע מיקום'); return; }
+
+  showSpinner();
+  try{
+    // Compress photo to base64 and store in Firestore
+    let finalPhotoUrl = photoUrl; // existing base64 or null
+    if(photoFile){
+      finalPhotoUrl = await compressImage(photoFile); // returns data URL string
+    }
+    if(!photoFile && !photoUrl) finalPhotoUrl=null;
+
+    const data={
+      type:typeId, crop, plot,
+      notes:$id('inp-notes').value.trim(),
+      location:new firebase.firestore.GeoPoint(selectedLocation.lat, selectedLocation.lng),
+      photoUrl:finalPhotoUrl||null,
+      createdBy:currentUser.uid,
+    };
+
+    if(editingId){
+      await db.collection('reports').doc(editingId).update(data);
+      toast('דיווח עודכן');
+    } else {
+      data.timestamp=firebase.firestore.FieldValue.serverTimestamp();
+      data.done=false;
+      data.doneAt=null;
+      await db.collection('reports').add(data);
+      toast('דיווח נשמר');
+    }
+    closeForm();
+  }catch(e){ console.error(e); toast('שגיאה: '+e.message); }
+  finally{ hideSpinner(); }
+}
+
+async function toggleDone(id){
+  const r=reports[id];
+  if(!r) return;
+  const newDone=!r.done;
+  await db.collection('reports').doc(id).update({
+    done:newDone,
+    doneAt: newDone ? firebase.firestore.FieldValue.serverTimestamp() : null
+  });
+  closePopover();
+  toast(newDone?'סומן כבוצע':'בוטל סימון בוצע');
+}
+
+// ═══════════════════════════════════════════
+// FILTER
+// ═══════════════════════════════════════════
+function openFilterModal(){
+  populateFilterTypeSelect();
+  $id('filter-type').value=filters.type;
+  $id('filter-crop').value=filters.crop;
+  updateFilterPlotOptions(filters.crop);
+  setTimeout(()=>$id('filter-plot').value=filters.plot, 50);
+  show('modal-filter');
+}
+
+function updateFilterPlotOptions(crop){
+  const sel=$id('filter-plot');
+  sel.innerHTML='<option value="">הכל</option>';
+  if(!crop||!PLOTS[crop]) return;
+  PLOTS[crop].forEach(p=>{ const o=document.createElement('option'); o.value=p; o.textContent=p; sel.appendChild(o); });
+}
+
+function applyFilter(){
+  filters.type=$id('filter-type').value;
+  filters.crop=$id('filter-crop').value;
+  filters.plot=$id('filter-plot').value;
+  hide('modal-filter');
+  refreshMarkerVisibility();
+  updateFilterBadge();
+  saveUserFilters();
+}
+
+function clearFilter(){
+  filters={type:'',crop:'',plot:''};
+  $id('filter-type').value='';
+  $id('filter-crop').value='';
+  $id('filter-plot').innerHTML='<option value="">הכל</option>';
+  refreshMarkerVisibility();
+  updateFilterBadge();
+  saveUserFilters();
+}
+
+function updateFilterBadge(){
+  const active=Object.values(filters).some(v=>v!=='');
+  const badge=$id('filter-badge');
+  active ? show('filter-badge') : hide('filter-badge');
+  $id('btn-filter').classList.toggle('fab-active', active);
+}
+
+async function saveUserFilters(){
+  if(!currentUser) return;
+  try{
+    await db.collection('users').doc(currentUser.uid).set({lastFilter:filters},{merge:true});
+  }catch(e){}
+}
+
+async function loadUserFilters(){
+  if(!currentUser) return;
+  try{
+    const doc=await db.collection('users').doc(currentUser.uid).get();
+    if(doc.exists && doc.data().lastFilter) filters=doc.data().lastFilter;
+    if(doc.exists && doc.data().pinnedPlots) pinnedPlots=doc.data().pinnedPlots||[];
+    updateFilterBadge();
+  }catch(e){}
+}
+
+// ═══════════════════════════════════════════
+// LIST VIEW
+// ═══════════════════════════════════════════
+function openList(){
+  populateListTypeSelect();
+  renderList();
+  show('modal-list');
+}
+
+function renderList(){
+  const container=$id('list-container');
+  let items = Object.values(reports);
+
+  // Filter by type in list
+  if(listTypeFilter) items=items.filter(r=>r.type===listTypeFilter);
+
+  // Sort
+  items.sort((a,b)=>{
+    if(listSort==='pin'){
+      const aPin=pinnedPlots.includes(a.plot);
+      const bPin=pinnedPlots.includes(b.plot);
+      if(aPin&&!bPin) return -1;
+      if(!aPin&&bPin) return 1;
+    }
+    if(listSort==='type') return (getType(a.type).name||'').localeCompare(getType(b.type).name||'');
+    if(listSort==='plot') return (a.plot||'').localeCompare(b.plot||'');
+    if(listSort==='status') return (a.done?1:0)-(b.done?1:0);
+    return 0;
+  });
+
+  if(items.length===0){
+    container.innerHTML='<div class="empty-list">אין דיווחים</div>';
+    return;
+  }
+
+  container.innerHTML='';
+  items.forEach(r=>{
+    const t=getType(r.type);
+    const pinned=pinnedPlots.includes(r.plot);
+    const div=document.createElement('div');
+    div.className='list-item';
+    div.innerHTML=`
+      <div class="list-icon">${smallIcon(r.type,r.done,t.color)}</div>
+      <div class="list-body">
+        <div class="list-name">${t.name}</div>
+        <div class="list-meta">${r.plot||'—'} | ${CROP_HEB[r.crop]||r.crop||'—'}</div>
+      </div>
+      <div class="list-status">
+        <span class="${r.done?'done-badge':'open-badge'}">${r.done?'בוצע':'פתוח'}</span>
+      </div>
+      <button class="pin-btn${pinned?' pinned':''}" data-plot="${r.plot||''}" data-id="${r.id}" title="${pinned?'בטל נעיצה':'נעץ'}">
+        ${pinned?'📌':'📍'}
+      </button>
+    `;
+    div.addEventListener('click',e=>{
+      if(e.target.classList.contains('pin-btn')){
+        togglePin(r.plot);
+      } else {
+        hide('modal-list');
+        if(markers[r.id]) map.panTo(markers[r.id].getPosition());
+        openPopover(r.id);
+      }
+    });
+    container.appendChild(div);
+  });
+}
+
+async function togglePin(plot){
+  if(!plot) return;
+  const idx=pinnedPlots.indexOf(plot);
+  if(idx>=0) pinnedPlots.splice(idx,1); else pinnedPlots.push(plot);
+  try{ await db.collection('users').doc(currentUser.uid).set({pinnedPlots},{merge:true}); }catch(e){}
+  renderList();
+}
+
+function refreshListIfOpen(){
+  if(!$id('modal-list').classList.contains('hidden')) renderList();
+}
+
+// ═══════════════════════════════════════════
+// ADD CUSTOM TYPE
+// ═══════════════════════════════════════════
+async function saveCustomType(){
+  const name=$id('inp-type-name').value.trim();
+  const color=$id('inp-type-color').value;
+  if(!name){ toast('יש לתת שם לסוג'); return; }
+  showSpinner();
+  try{
+    await db.collection('reportTypes').add({name, color, iconKey:'custom'});
+    toast('סוג נוסף');
+    hide('modal-add-type');
+    $id('inp-type-name').value='';
+  }catch(e){ toast('שגיאה: '+e.message); }
+  finally{ hideSpinner(); }
+}
+
+// ═══════════════════════════════════════════
+// POPULATE SELECTS
+// ═══════════════════════════════════════════
+function populateTypeSelects(){
+  const types=allTypes();
+
+  // Form type select
+  const selType=$id('sel-type');
+  const prevType=selType.value;
+  selType.innerHTML='<option value="">— בחר סוג —</option>';
+  types.forEach(t=>{ const o=document.createElement('option'); o.value=t.id; o.textContent=t.name; selType.appendChild(o); });
+  if(prevType) selType.value=prevType;
+
+  populateListTypeSelect();
+  populateFilterTypeSelect();
+}
+
+function populateListTypeSelect(){
+  const types=allTypes();
+  const sel=$id('list-filter-type');
+  const prev=sel.value;
+  sel.innerHTML='<option value="">כל הסוגים</option>';
+  types.forEach(t=>{ const o=document.createElement('option'); o.value=t.id; o.textContent=t.name; sel.appendChild(o); });
+  sel.value=prev;
+}
+
+function populateFilterTypeSelect(){
+  const types=allTypes();
+  const sel=$id('filter-type');
+  const prev=sel.value;
+  sel.innerHTML='<option value="">הכל</option>';
+  types.forEach(t=>{ const o=document.createElement('option'); o.value=t.id; o.textContent=t.name; sel.appendChild(o); });
+  sel.value=prev;
+}
+
+// ═══════════════════════════════════════════
+// MAP PICKER
+// ═══════════════════════════════════════════
+function startPicker(){
+  pickerActive=true;
+  hide('modal-form');
+  show('picker-overlay');
+  document.body.style.cursor='crosshair';
+}
+
+function stopPicker(){
+  pickerActive=false;
+  hide('picker-overlay');
+  document.body.style.cursor='';
+}
+
+// ═══════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════
+function checkRemembered(){
+  const saved=localStorage.getItem('savedEmail');
+  if(saved){
+    $id('inp-email').value=saved;
+    $id('inp-password').value=localStorage.getItem('savedPassword')||'';
+    $id('chk-remember').checked=true;
+  }
+}
+
+async function doLogin(){
+  const email=$id('inp-email').value.trim();
+  const pw=$id('inp-password').value;
+  const err=$id('login-error');
+  err.textContent='';
+  if(!email||!pw){ err.textContent='יש למלא אימייל וסיסמה'; return; }
+  showSpinner();
+  try{
+    await auth.signInWithEmailAndPassword(email, pw);
+    if($id('chk-remember').checked){
+      localStorage.setItem('savedEmail',email);
+      localStorage.setItem('savedPassword',pw);
+    } else {
+      localStorage.removeItem('savedEmail');
+      localStorage.removeItem('savedPassword');
+    }
+  }catch(e){
+    err.textContent = e.code==='auth/invalid-credential'||e.code==='auth/wrong-password'
+      ? 'אימייל או סיסמה שגויים' : 'שגיאה: '+e.message;
+  }
+  finally{ hideSpinner(); }
+}
+
+function doLogout(){
+  if(!confirm('לצאת מהאפליקציה?')) return;
+  auth.signOut();
+}
+
+// ═══════════════════════════════════════════
+// AUTH STATE
+// ═══════════════════════════════════════════
+auth.onAuthStateChanged(user=>{
+  if(user){
+    currentUser=user;
+    hide('screen-login');
+    show('screen-map');
+    loadUserFilters();
+    if(mapsReady) initMap();
+  } else {
+    currentUser=null;
+    if(reportsUnsub){ reportsUnsub(); reportsUnsub=null; }
+    if(typesUnsub){ typesUnsub(); typesUnsub=null; }
+    if(gpsWatcher){ navigator.geolocation.clearWatch(gpsWatcher); gpsWatcher=null; }
+    Object.values(markers).forEach(m=>m.setMap(null));
+    markers={}; reports={}; map=null;
+    hide('screen-map');
+    show('screen-login');
+  }
+  hideSpinner();
+});
+
+// ═══════════════════════════════════════════
+// ANDROID BACK BUTTON
+// ═══════════════════════════════════════════
+document.addEventListener('backbutton',()=>{
+  // Close modals in priority order
+  if(!$id('modal-form').classList.contains('hidden')){closeForm();return;}
+  if(!$id('modal-list').classList.contains('hidden')){hide('modal-list');return;}
+  if(!$id('modal-filter').classList.contains('hidden')){hide('modal-filter');return;}
+  if(!$id('modal-add-type').classList.contains('hidden')){hide('modal-add-type');return;}
+  if(!$id('popover').classList.contains('hidden')){closePopover();return;}
+  if(pickerActive){stopPicker();show('modal-form');return;}
+  // Double-tap to exit
+  backCount++;
+  if(backCount>=2){ if(navigator.app) navigator.app.exitApp(); backCount=0; }
+  else { toast('לחץ/י שוב ליציאה'); clearTimeout(backTimer); backTimer=setTimeout(()=>backCount=0,2000); }
+});
+
+// ═══════════════════════════════════════════
+// EVENT LISTENERS
+// ═══════════════════════════════════════════
+document.addEventListener('DOMContentLoaded',()=>{
+  checkRemembered();
+
+  // Login
+  $id('btn-login').addEventListener('click', doLogin);
+  $id('inp-password').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+
+  // Logout
+  $id('btn-logout').addEventListener('click', doLogout);
+
+  // Map type
+  $id('btn-map-road').addEventListener('click',()=>{
+    if(map){map.setMapTypeId('roadmap');localStorage.setItem('mapType','roadmap');updateMapTypeUI('roadmap');}
+  });
+  $id('btn-map-sat').addEventListener('click',()=>{
+    if(map){map.setMapTypeId('satellite');localStorage.setItem('mapType','satellite');updateMapTypeUI('satellite');}
+  });
+
+  // GPS center
+  $id('btn-gps-center').addEventListener('click', centerOnGPS);
+
+  // Report FAB
+  $id('btn-report').addEventListener('click', ()=>{
+    if(!map){toast('המפה עדיין נטענת...');return;}
+    closePopover();
+    openNewForm();
+  });
+
+  // Filter
+  $id('btn-filter').addEventListener('click', ()=>{ closePopover(); openFilterModal(); });
+  $id('btn-filter-x').addEventListener('click', ()=>hide('modal-filter'));
+  $id('filter-crop').addEventListener('change',()=>updateFilterPlotOptions($id('filter-crop').value));
+  $id('btn-filter-apply').addEventListener('click', applyFilter);
+  $id('btn-filter-clear').addEventListener('click', ()=>{ clearFilter(); hide('modal-filter'); });
+
+  // Toggle done
+  $id('btn-toggle-done').addEventListener('click',()=>{
+    showDoneReports=!showDoneReports;
+    $id('btn-toggle-done').textContent=showDoneReports?'👁 בוצע':'🚫 בוצע';
+    $id('btn-toggle-done').classList.toggle('fab-active',!showDoneReports);
+    refreshMarkerVisibility();
+  });
+
+  // List
+  $id('btn-list').addEventListener('click',()=>{ closePopover(); openList(); });
+  $id('btn-list-x').addEventListener('click',()=>hide('modal-list'));
+  $id('list-filter-type').addEventListener('change',()=>{ listTypeFilter=$id('list-filter-type').value; renderList(); });
+  document.querySelectorAll('.sort-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      listSort=btn.dataset.sort;
+      document.querySelectorAll('.sort-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      renderList();
+    });
+  });
+
+  // Add type
+  $id('btn-add-type').addEventListener('click',()=>{ closePopover(); show('modal-add-type'); });
+  $id('btn-add-type-x').addEventListener('click',()=>hide('modal-add-type'));
+  $id('btn-add-type-cancel').addEventListener('click',()=>hide('modal-add-type'));
+  $id('btn-add-type-save').addEventListener('click', saveCustomType);
+
+  // Form
+  $id('btn-form-x').addEventListener('click', closeForm);
+  $id('btn-form-cancel').addEventListener('click', closeForm);
+  $id('btn-form-save').addEventListener('click', saveReport);
+  $id('sel-crop').addEventListener('change',()=>updatePlotOptions($id('sel-crop').value));
+  $id('btn-photo').addEventListener('click',()=>$id('inp-photo').click());
+  $id('inp-photo').addEventListener('change', e=>{
+    const f=e.target.files[0];
+    if(!f) return;
+    photoFile=f;
+    const reader=new FileReader();
+    reader.onload=ev=>{ $id('photo-preview').src=ev.target.result; show('photo-preview'); show('btn-remove-photo'); };
+    reader.readAsDataURL(f);
+  });
+  $id('btn-remove-photo').addEventListener('click',()=>{
+    photoFile=null; photoUrl=null;
+    hide('photo-preview'); hide('btn-remove-photo');
+    $id('inp-photo').value='';
+  });
+  $id('btn-loc-gps').addEventListener('click',()=>{
+    if(gpsPosition){ selectedLocation={...gpsPosition}; updateLocationDisplay(); toast('מיקום נוכחי נבחר'); }
+    else toast('מיקום GPS לא זמין');
+  });
+  $id('btn-loc-map').addEventListener('click', startPicker);
+
+  // Picker cancel
+  $id('btn-picker-cancel').addEventListener('click',()=>{ stopPicker(); show('modal-form'); });
+
+  // Popover
+  $id('btn-pop-close').addEventListener('click', closePopover);
+  $id('btn-pop-done').addEventListener('click',()=>{ if(popoverReportId) toggleDone(popoverReportId); });
+  $id('btn-pop-edit').addEventListener('click',()=>{ if(popoverReportId) openEditForm(popoverReportId); });
+
+  // Click outside modals
+  [$id('modal-form'),$id('modal-list'),$id('modal-filter'),$id('modal-add-type')].forEach(m=>{
+    m.addEventListener('click', e=>{ if(e.target===m) m.classList.add('hidden'); });
+  });
+});
+</script>
+
+<!-- Google Maps (async) -->
+<script>
+window.initMapCallback = function(){
+  mapsReady=true;
+  if(currentUser) initMap();
+};
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBR-YULE9PQCHzIEQGnllYaJ4jalSTD3IM&callback=initMapCallback&loading=async" defer></script>
+</body>
+</html>
