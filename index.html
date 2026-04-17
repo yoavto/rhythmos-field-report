@@ -184,6 +184,8 @@ body{background:var(--bg);color:#222;overflow:hidden;height:100dvh;width:100vw}
 .btn-done-mark{background:#4CAF50;color:white}
 .btn-done-undo{background:#FF9800;color:white}
 .btn-edit{padding:8px 14px;background:var(--teal);color:white;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600}
+.btn-delete-pop{padding:8px 12px;background:#8A0909;color:white;border:none;border-radius:8px;cursor:pointer;font-size:14px}
+.list-item-check{width:20px;height:20px;accent-color:#8A0909;cursor:pointer;flex-shrink:0}
 .done-badge{background:#4CAF50;color:white;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700}
 .open-badge{background:#FF9800;color:white;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700}
 
@@ -369,6 +371,7 @@ body{background:var(--bg);color:#222;overflow:hidden;height:100dvh;width:100vw}
   <div class="popover-actions">
     <button id="btn-pop-done" class="btn-done btn-done-mark">✓ סמן כבוצע</button>
     <button id="btn-pop-edit" class="btn-edit">✏ עריכה</button>
+    <button id="btn-pop-delete" class="btn-delete-pop">🗑</button>
   </div>
 </div>
 
@@ -439,7 +442,17 @@ body{background:var(--bg);color:#222;overflow:hidden;height:100dvh;width:100vw}
   <div class="modal-sheet">
     <div class="modal-header">
       <h2>רשימת דיווחים</h2>
-      <button class="btn-x" id="btn-list-x">✕</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="btn-list-select" class="btn-small" title="בחר למחיקה">🗑 בחר</button>
+        <button class="btn-x" id="btn-list-x">✕</button>
+      </div>
+    </div>
+    <div id="list-delete-bar" class="hidden" style="background:#8A0909;color:white;padding:8px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <span id="list-select-count">0 נבחרו</span>
+      <div style="display:flex;gap:8px">
+        <button id="btn-list-select-all" class="btn-small" style="background:rgba(255,255,255,.25);color:white;border:none">בחר הכל</button>
+        <button id="btn-list-delete-selected" class="btn-small" style="background:white;color:#8A0909;border:none;font-weight:700">מחק</button>
+      </div>
     </div>
     <div class="list-controls">
       <select id="list-filter-type"><option value="">כל הסוגים</option></select>
@@ -594,6 +607,8 @@ let gpsMarker         = null;
 let photoFile         = null;
 let photoUrl          = null;
 let popoverReportId   = null;
+let listSelectMode    = false;
+let selectedForDelete = new Set();
 let listSort          = 'type';
 let listTypeFilter    = '';
 let pinnedPlots       = [];
@@ -883,8 +898,17 @@ function renderMarker(id){
   marker.addListener('touchend', cancelPress);
   marker.addListener('touchmove', cancelPress);
 
-  // Click = info popover
-  marker.addListener('click', ()=>{if(!longPressed) openPopover(id);});
+  // Click = info popover (or picker)
+  marker.addListener('click', ()=>{
+    if(pickerActive){
+      selectedLocation={lat:r.location.latitude, lng:r.location.longitude};
+      updateLocationDisplay();
+      stopPicker();
+      show('modal-form');
+      return;
+    }
+    if(!longPressed) openPopover(id);
+  });
 
   markers[id]=marker;
 }
@@ -1186,20 +1210,36 @@ function renderList(){
     const pinned=pinnedPlots.includes(r.plot);
     const div=document.createElement('div');
     div.className='list-item';
+    div.dataset.id=r.id;
+    const dateStr=formatDate(r.timestamp);
     div.innerHTML=`
+      ${listSelectMode?`<input type="checkbox" class="list-item-check" data-id="${r.id}" ${selectedForDelete.has(r.id)?'checked':''}>`:''}
       <div class="list-icon">${smallIcon(r.type,r.done,t.color)}</div>
       <div class="list-body">
         <div class="list-name">${t.name}</div>
         <div class="list-meta">${r.plot||'—'} | ${CROP_HEB[r.crop]||r.crop||'—'}</div>
+        <div class="list-meta" style="font-size:11px;color:#999">${dateStr}</div>
       </div>
       <div class="list-status">
         <span class="${r.done?'done-badge':'open-badge'}">${r.done?'בוצע':'פתוח'}</span>
       </div>
-      <button class="pin-btn${pinned?' pinned':''}" data-plot="${r.plot||''}" data-id="${r.id}" title="${pinned?'בטל נעיצה':'נעץ'}">
-        📌
-      </button>
+      ${!listSelectMode?`<button class="pin-btn${pinned?' pinned':''}" data-plot="${r.plot||''}" data-id="${r.id}" title="${pinned?'בטל נעיצה':'נעץ'}">📌</button>`:''}
     `;
     div.addEventListener('click',e=>{
+      if(listSelectMode){
+        const chk=div.querySelector('.list-item-check');
+        if(e.target!==chk){
+          if(selectedForDelete.has(r.id)) selectedForDelete.delete(r.id);
+          else selectedForDelete.add(r.id);
+          if(chk) chk.checked=selectedForDelete.has(r.id);
+          updateDeleteBar();
+        } else {
+          if(chk.checked) selectedForDelete.add(r.id);
+          else selectedForDelete.delete(r.id);
+          updateDeleteBar();
+        }
+        return;
+      }
       if(e.target.classList.contains('pin-btn')){
         togglePin(r.plot);
       } else {
@@ -1210,6 +1250,47 @@ function renderList(){
     });
     container.appendChild(div);
   });
+}
+
+async function deleteReport(id){
+  if(!confirm('למחוק דיווח זה?')) return;
+  closePopover();
+  showSpinner();
+  try{
+    await db.collection('reports').doc(id).delete();
+    toast('דיווח נמחק');
+  }catch(e){ toast('שגיאה: '+e.message); }
+  finally{ hideSpinner(); }
+}
+
+async function deleteSelectedReports(){
+  if(selectedForDelete.size===0) return;
+  if(!confirm(`למחוק ${selectedForDelete.size} דיווחים?`)) return;
+  showSpinner();
+  try{
+    const batch=db.batch();
+    selectedForDelete.forEach(id=>batch.delete(db.collection('reports').doc(id)));
+    await batch.commit();
+    toast(`${selectedForDelete.size} דיווחים נמחקו`);
+    selectedForDelete.clear();
+    setListSelectMode(false);
+  }catch(e){ toast('שגיאה: '+e.message); }
+  finally{ hideSpinner(); }
+}
+
+function setListSelectMode(on){
+  listSelectMode=on;
+  selectedForDelete.clear();
+  const bar=$id('list-delete-bar');
+  const btn=$id('btn-list-select');
+  if(on){ bar.style.display='flex'; btn.textContent='ביטול'; }
+  else { bar.style.display='none'; btn.textContent='🗑 בחר'; }
+  updateDeleteBar();
+  renderList();
+}
+
+function updateDeleteBar(){
+  $id('list-select-count').textContent=selectedForDelete.size+' נבחרו';
 }
 
 async function togglePin(plot){
@@ -1419,7 +1500,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 
   // List
   $id('btn-list').addEventListener('click',()=>{ closePopover(); openList(); });
-  $id('btn-list-x').addEventListener('click',()=>hide('modal-list'));
+  $id('btn-list-x').addEventListener('click',()=>{ setListSelectMode(false); hide('modal-list'); });
   $id('list-filter-type').addEventListener('change',()=>{ listTypeFilter=$id('list-filter-type').value; renderList(); });
   document.querySelectorAll('.sort-btn').forEach(btn=>{
     btn.addEventListener('click',()=>{
@@ -1468,6 +1549,17 @@ document.addEventListener('DOMContentLoaded',()=>{
   $id('btn-pop-close').addEventListener('click', closePopover);
   $id('btn-pop-done').addEventListener('click',()=>{ if(popoverReportId) toggleDone(popoverReportId); });
   $id('btn-pop-edit').addEventListener('click',()=>{ if(popoverReportId) openEditForm(popoverReportId); });
+  $id('btn-pop-delete').addEventListener('click',()=>{ if(popoverReportId) deleteReport(popoverReportId); });
+  $id('btn-list-select').addEventListener('click',()=>setListSelectMode(!listSelectMode));
+  $id('btn-list-select-all').addEventListener('click',()=>{
+    Object.keys(reports).forEach(id=>{
+      const r=reports[id];
+      if(!listTypeFilter||r.type===listTypeFilter) selectedForDelete.add(id);
+    });
+    updateDeleteBar();
+    renderList();
+  });
+  $id('btn-list-delete-selected').addEventListener('click', deleteSelectedReports);
 
   // Click outside modals
   [$id('modal-form'),$id('modal-list'),$id('modal-filter'),$id('modal-add-type')].forEach(m=>{
