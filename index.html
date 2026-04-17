@@ -337,7 +337,7 @@ body{background:var(--bg);color:#222;overflow:hidden;height:100dvh;width:100vw}
       <span class="btn-back-label">יציאה</span>
     </button>
   </div>
-  <div id="map"<div id="map" style="flex:1"></div>
+  <div id="map" style="flex:1"></div>
 
   <!-- Map type toggle -->
   <div class="map-toggle" id="map-toggle">
@@ -826,7 +826,7 @@ function updateMapTypeUI(type){
 }
 
 function startGPS(){
-  if(!navigator.geolocation) return;
+  if(!navigator.geolocation){ console.warn('Geolocation not supported'); return; }
   gpsWatcher = navigator.geolocation.watchPosition(pos=>{
     const lat=pos.coords.latitude, lng=pos.coords.longitude;
     gpsPosition={lat,lng};
@@ -841,7 +841,10 @@ function startGPS(){
     } else {
       gpsMarker.setPosition({lat,lng});
     }
-  }, null, {enableHighAccuracy:true, maximumAge:5000});
+  }, err=>{
+    console.warn('GPS watchPosition error', err.code, err.message);
+    gpsPosition=null;
+  }, {enableHighAccuracy:true, maximumAge:5000});
 }
 
 function centerOnGPS(){
@@ -1271,9 +1274,15 @@ function showConfirm(msg, onOk){
   show('modal-confirm');
   const btnOk=$id('btn-confirm-ok');
   const btnCancel=$id('btn-confirm-cancel');
-  const cleanup=()=>{ hide('modal-confirm'); btnOk.onclick=null; btnCancel.onclick=null; };
-  btnOk.onclick=()=>{ cleanup(); onOk(); };
-  btnCancel.onclick=()=>cleanup();
+  function doOk(){ cleanup(); onOk(); }
+  function doCancel(){ cleanup(); }
+  function cleanup(){
+    hide('modal-confirm');
+    btnOk.removeEventListener('click', doOk);
+    btnCancel.removeEventListener('click', doCancel);
+  }
+  btnOk.addEventListener('click', doOk);
+  btnCancel.addEventListener('click', doCancel);
 }
 
 async function deleteReport(id){
@@ -1563,8 +1572,24 @@ document.addEventListener('DOMContentLoaded',()=>{
     $id('inp-photo').value='';
   });
   $id('btn-loc-gps').addEventListener('click',()=>{
-    if(gpsPosition){ selectedLocation={...gpsPosition}; updateLocationDisplay(); toast('מיקום נוכחי נבחר'); }
-    else toast('מיקום GPS לא זמין');
+    if(gpsPosition){
+      selectedLocation={lat:gpsPosition.lat, lng:gpsPosition.lng};
+      updateLocationDisplay();
+      toast('מיקום נוכחי נבחר');
+    } else if(navigator.geolocation) {
+      toast('מאתר מיקום...');
+      navigator.geolocation.getCurrentPosition(
+        pos=>{
+          gpsPosition={lat:pos.coords.latitude, lng:pos.coords.longitude};
+          selectedLocation={lat:gpsPosition.lat, lng:gpsPosition.lng};
+          updateLocationDisplay();
+          toast('מיקום נוכחי נבחר');
+        },
+        ()=>toast('מיקום GPS לא זמין — ודא/י שהרשאת מיקום מאופשרת')
+      );
+    } else {
+      toast('מיקום GPS לא זמין');
+    }
   });
   $id('btn-loc-map').addEventListener('click', startPicker);
 
@@ -1572,7 +1597,6 @@ document.addEventListener('DOMContentLoaded',()=>{
   $id('btn-picker-cancel').addEventListener('click',()=>{ stopPicker(); show('modal-form'); });
 
   // Popover
-  $id('btn-confirm-cancel').addEventListener('click',()=>hide('modal-confirm'));
   $id('btn-pop-close').addEventListener('click', closePopover);
   $id('btn-pop-done').addEventListener('click',()=>{ if(popoverReportId) toggleDone(popoverReportId); });
   $id('btn-pop-edit').addEventListener('click',()=>{ if(popoverReportId) openEditForm(popoverReportId); });
