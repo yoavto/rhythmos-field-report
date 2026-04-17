@@ -357,6 +357,17 @@ body{background:var(--bg);color:#222;overflow:hidden;height:100dvh;width:100vw}
   <button class="btn-small" id="btn-picker-cancel">ביטול</button>
 </div>
 
+<!-- Custom confirm modal -->
+<div id="modal-confirm" class="modal-overlay hidden" style="z-index:9999">
+  <div class="modal-sheet" style="padding:24px;max-width:320px;text-align:center">
+    <p id="confirm-msg" style="font-size:16px;font-weight:600;color:#222;margin-bottom:20px"></p>
+    <div style="display:flex;gap:12px;justify-content:center">
+      <button id="btn-confirm-cancel" class="btn-secondary" style="flex:1">ביטול</button>
+      <button id="btn-confirm-ok" style="flex:1;padding:10px 16px;background:#8A0909;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">מחק</button>
+    </div>
+  </div>
+</div>
+
 <!-- Info popover -->
 <div id="popover" class="hidden">
   <div class="popover-header">
@@ -901,8 +912,10 @@ function renderMarker(id){
   // Click = info popover (or picker)
   marker.addListener('click', ()=>{
     if(pickerActive){
-      selectedLocation={lat:r.location.latitude, lng:r.location.longitude};
-      updateLocationDisplay();
+      if(r.location){
+        selectedLocation={lat:r.location.latitude, lng:r.location.longitude};
+        updateLocationDisplay();
+      }
       stopPicker();
       show('modal-form');
       return;
@@ -1043,6 +1056,7 @@ function closeForm(){ hide('modal-form'); editingId=null; stopPicker(); }
 
 function updateLocationDisplay(){
   const el=$id('disp-location');
+  if(!el) return;
   if(selectedLocation) el.textContent=`${selectedLocation.lat.toFixed(5)}, ${selectedLocation.lng.toFixed(5)}`;
   else el.textContent='לא נקבע';
 }
@@ -1252,20 +1266,31 @@ function renderList(){
   });
 }
 
+function showConfirm(msg, onOk){
+  $id('confirm-msg').textContent=msg;
+  show('modal-confirm');
+  const btnOk=$id('btn-confirm-ok');
+  const btnCancel=$id('btn-confirm-cancel');
+  const cleanup=()=>{ hide('modal-confirm'); btnOk.onclick=null; btnCancel.onclick=null; };
+  btnOk.onclick=()=>{ cleanup(); onOk(); };
+  btnCancel.onclick=()=>cleanup();
+}
+
 async function deleteReport(id){
-  if(!confirm('למחוק דיווח זה?')) return;
-  closePopover();
-  showSpinner();
-  try{
-    await db.collection('reports').doc(id).delete();
-    toast('דיווח נמחק');
-  }catch(e){ toast('שגיאה: '+e.message); }
-  finally{ hideSpinner(); }
+  showConfirm('למחוק דיווח זה?', async ()=>{
+    closePopover();
+    showSpinner();
+    try{
+      await db.collection('reports').doc(id).delete();
+      toast('דיווח נמחק');
+    }catch(e){ toast('שגיאה: '+e.message); }
+    finally{ hideSpinner(); }
+  });
 }
 
 async function deleteSelectedReports(){
   if(selectedForDelete.size===0) return;
-  if(!confirm(`למחוק ${selectedForDelete.size} דיווחים?`)) return;
+  showConfirm(`למחוק ${selectedForDelete.size} דיווחים?`, async ()=>{
   showSpinner();
   try{
     const batch=db.batch();
@@ -1276,6 +1301,7 @@ async function deleteSelectedReports(){
     setListSelectMode(false);
   }catch(e){ toast('שגיאה: '+e.message); }
   finally{ hideSpinner(); }
+  });
 }
 
 function setListSelectMode(on){
@@ -1546,6 +1572,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   $id('btn-picker-cancel').addEventListener('click',()=>{ stopPicker(); show('modal-form'); });
 
   // Popover
+  $id('btn-confirm-cancel').addEventListener('click',()=>hide('modal-confirm'));
   $id('btn-pop-close').addEventListener('click', closePopover);
   $id('btn-pop-done').addEventListener('click',()=>{ if(popoverReportId) toggleDone(popoverReportId); });
   $id('btn-pop-edit').addEventListener('click',()=>{ if(popoverReportId) openEditForm(popoverReportId); });
