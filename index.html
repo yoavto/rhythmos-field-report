@@ -1318,8 +1318,8 @@ function setListSelectMode(on){
   selectedForDelete.clear();
   const bar=$id('list-delete-bar');
   const btn=$id('btn-list-select');
-  if(on){ bar.style.display='flex'; btn.textContent='ביטול'; }
-  else { bar.style.display='none'; btn.textContent='🗑 בחר'; }
+  if(on){ show('list-delete-bar'); btn.textContent='ביטול'; }
+  else { hide('list-delete-bar'); btn.textContent='🗑 בחר'; }
   updateDeleteBar();
   renderList();
 }
