@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Field Report">
+<meta name="apple-mobile-web-app-title" content="ריתמוס - דיווחים מהשטח">
 <title>Rhythmos Field Report</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon_192.png">
@@ -491,12 +491,12 @@ body{background:var(--bg);color:#222;overflow:hidden;height:100dvh;width:100vw}
 
 <!-- ═══════════════ FILTER MODAL ═══════════════ -->
 <div id="modal-filter" class="modal-overlay hidden">
-  <div class="modal-sheet-center" style="margin:auto">
+  <div class="modal-sheet-center" style="margin:auto;display:flex;flex-direction:column;max-height:88dvh">
     <div class="modal-header">
       <h2>סינון</h2>
       <button class="btn-x" id="btn-filter-x">✕</button>
     </div>
-    <div class="form-scroll">
+    <div class="form-scroll" style="flex:1;overflow-y:auto">
       <div class="form-group">
         <label>סוג דיווח</label>
         <div id="filter-types-list"></div>
@@ -507,15 +507,15 @@ body{background:var(--bg);color:#222;overflow:hidden;height:100dvh;width:100vw}
       </div>
       <div class="form-group">
         <label>חלקה</label>
-        <div id="filter-plots-list" style="max-height:160px;overflow-y:auto"></div>
+        <div id="filter-plots-list"></div>
       </div>
-      <div class="form-actions">
-        <button class="btn-secondary" id="btn-filter-clear">נקה סינון</button>
-        <button class="btn-primary" id="btn-filter-apply">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="white"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
-          החל
-        </button>
-      </div>
+    </div>
+    <div class="form-actions" style="flex-shrink:0;border-top:1px solid var(--border);padding:12px 16px;background:var(--white)">
+      <button class="btn-secondary" id="btn-filter-clear">נקה סינון</button>
+      <button class="btn-primary" id="btn-filter-apply">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="white"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+        החל
+      </button>
     </div>
   </div>
 </div>
@@ -588,7 +588,7 @@ if('serviceWorker' in navigator){
 // ═══════════════════════════════════════════
 // VERSION
 // ═══════════════════════════════════════════
-const APP_VERSION = 'Build 6';
+const APP_VERSION = 'Build 7';
 const CHANGELOG = [
   { build:'Build 1', date:'17.04.2026', notes:[
     'תיקון כפתור "מחק" באישור מחיקה — לא הגיב ללחיצה',
@@ -681,7 +681,6 @@ let typesUnsub        = null;
 let pickerActive      = false;
 let pickerListener    = null;
 let pickerTimer       = null;
-let backCount         = 0;
 let backTimer         = null;
 let mapsReady         = false;
 
@@ -1627,19 +1626,34 @@ auth.onAuthStateChanged(user=>{
 // ═══════════════════════════════════════════
 // ANDROID BACK BUTTON
 // ═══════════════════════════════════════════
-document.addEventListener('backbutton',()=>{
+// ═══════════════════════════════════════════
+// ANDROID BACK BUTTON (popstate — works in PWA)
+// ═══════════════════════════════════════════
+let backPressedOnce = false;
+
+function handleAndroidBack(){
   // Close modals in priority order
-  if(!$id('modal-form').classList.contains('hidden')){closeForm();return;}
-  if(!$id('modal-list').classList.contains('hidden')){hide('modal-list');return;}
-  if(!$id('modal-filter').classList.contains('hidden')){hide('modal-filter');return;}
-  if(!$id('modal-add-type').classList.contains('hidden')){hide('modal-add-type');return;}
-  if(!$id('popover').classList.contains('hidden')){closePopover();return;}
-  if(pickerActive){stopPicker();show('modal-form');return;}
-  // Double-tap to exit
-  backCount++;
-  if(backCount>=2){ if(navigator.app) navigator.app.exitApp(); backCount=0; }
-  else { toast('לחץ/י שוב ליציאה'); clearTimeout(backTimer); backTimer=setTimeout(()=>backCount=0,2000); }
-});
+  if(!$id('modal-form').classList.contains('hidden')){closeForm();history.pushState({pwa:true},'');return;}
+  if(!$id('modal-list').classList.contains('hidden')){hide('modal-list');history.pushState({pwa:true},'');return;}
+  if(!$id('modal-filter').classList.contains('hidden')){hide('modal-filter');history.pushState({pwa:true},'');return;}
+  if(!$id('modal-add-type').classList.contains('hidden')){hide('modal-add-type');history.pushState({pwa:true},'');return;}
+  if(!$id('modal-confirm').classList.contains('hidden')){hide('modal-confirm');history.pushState({pwa:true},'');return;}
+  if(!$id('modal-version').classList.contains('hidden')){hide('modal-version');history.pushState({pwa:true},'');return;}
+  if(!$id('popover').classList.contains('hidden')){closePopover();history.pushState({pwa:true},'');return;}
+  if(pickerActive){stopPicker();show('modal-form');history.pushState({pwa:true},'');return;}
+  // Nothing open — double-press to exit
+  if(backPressedOnce){
+    clearTimeout(backTimer);
+    return; // let browser navigate back → exits PWA
+  }
+  backPressedOnce=true;
+  toast('לחץ/י שוב ליציאה');
+  history.pushState({pwa:true},'');
+  backTimer=setTimeout(()=>{ backPressedOnce=false; },2000);
+}
+
+window.addEventListener('popstate', handleAndroidBack);
+window.addEventListener('load', ()=>{ history.pushState({pwa:true},''); });
 
 // ═══════════════════════════════════════════
 // EVENT LISTENERS
