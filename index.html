@@ -573,7 +573,7 @@ if('serviceWorker' in navigator){
 // ═══════════════════════════════════════════
 // VERSION
 // ═══════════════════════════════════════════
-const APP_VERSION = 'Build 1';
+const APP_VERSION = 'Build 2';
 const CHANGELOG = [
   { build:'Build 1', date:'17.04.2026', notes:[
     'תיקון כפתור "מחק" באישור מחיקה — לא הגיב ללחיצה',
@@ -587,15 +587,7 @@ const CHANGELOG = [
 ];
 
 function showVersionModal(){
-  const list=$id('version-list');
-  list.innerHTML='';
-  CHANGELOG.forEach(entry=>{
-    const div=document.createElement('div');
-    div.style.cssText='margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid #eee';
-    div.innerHTML=`<div style="font-weight:700;font-size:14px;color:var(--teal);margin-bottom:6px">${entry.build} &nbsp;·&nbsp; <span style="font-weight:400;color:#888;font-size:12px">${entry.date}</span></div>`
-      +entry.notes.map(n=>`<div style="font-size:13px;color:#444;padding:2px 0 2px 8px;border-right:3px solid var(--teal);margin-bottom:3px">${n}</div>`).join('');
-    list.appendChild(div);
-  });
+  $id('version-list').textContent=APP_VERSION;
   show('modal-version');
 }
 
@@ -669,6 +661,7 @@ let reportsUnsub      = null;
 let typesUnsub        = null;
 let pickerActive      = false;
 let pickerListener    = null;
+let pickerTimer       = null;
 let backCount         = 0;
 let backTimer         = null;
 let mapsReady         = false;
@@ -849,7 +842,10 @@ function initMap(){
       selectedLocation={lat:e.latLng.lat(), lng:e.latLng.lng()};
       updateLocationDisplay();
       stopPicker();
-      show('modal-form');
+      // Delay showing the form: the synthetic DOM click from the same touch
+      // fires after Google Maps' click event and would hit the modal backdrop,
+      // triggering the click-outside handler and immediately re-hiding the form.
+      setTimeout(()=>{ show('modal-form'); }, 350);
     }
   });
 
@@ -962,7 +958,7 @@ function renderMarker(id){
         updateLocationDisplay();
       }
       stopPicker();
-      show('modal-form');
+      setTimeout(()=>{ show('modal-form'); }, 350);
       return;
     }
     if(!longPressed) openPopover(id);
@@ -1438,14 +1434,16 @@ function populateFilterTypeSelect(){
 // MAP PICKER
 // ═══════════════════════════════════════════
 function startPicker(){
-  pickerActive=false; // guard: clear first so any residual touch-through can't fire
+  if(pickerTimer){ clearTimeout(pickerTimer); pickerTimer=null; }
+  pickerActive=false;
   hide('modal-form');
   show('picker-overlay');
   document.body.style.cursor='crosshair';
-  setTimeout(()=>{ pickerActive=true; }, 350); // delay past touch-through window
+  pickerTimer=setTimeout(()=>{ pickerTimer=null; pickerActive=true; }, 350);
 }
 
 function stopPicker(){
+  if(pickerTimer){ clearTimeout(pickerTimer); pickerTimer=null; }
   pickerActive=false;
   hide('picker-overlay');
   document.body.style.cursor='';
