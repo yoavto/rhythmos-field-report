@@ -573,7 +573,7 @@ if('serviceWorker' in navigator){
 // ═══════════════════════════════════════════
 // VERSION
 // ═══════════════════════════════════════════
-const APP_VERSION = 'Build 2';
+const APP_VERSION = 'Build 3';
 const CHANGELOG = [
   { build:'Build 1', date:'17.04.2026', notes:[
     'תיקון כפתור "מחק" באישור מחיקה — לא הגיב ללחיצה',
@@ -926,6 +926,7 @@ function renderMarker(id){
 
   if(markers[id]){
     const t=getType(r.type);
+    markers[id].setPosition({lat:r.location.latitude, lng:r.location.longitude});
     markers[id].setIcon(markerIcon(r.type, r.done, t.color));
     markers[id].setVisible(visible);
     return;
