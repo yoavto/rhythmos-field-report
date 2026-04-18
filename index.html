@@ -251,6 +251,17 @@ body{background:var(--bg);color:#222;overflow:hidden;height:100dvh;width:100vw}
   width:14px;height:14px;background:#4285F4;border:2.5px solid white;
   border-radius:50%;box-shadow:0 0 0 4px rgba(66,133,244,.25)
 }
+
+/* ── FILTER CHECKBOXES ── */
+.filter-chk-row{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 4px;font-size:13px;color:#333;cursor:pointer;
+  border-bottom:1px solid #f5f5f5;
+}
+.filter-chk-row:last-child{border-bottom:none}
+.filter-chk-row input[type=checkbox]{
+  width:17px;height:17px;accent-color:var(--teal);cursor:pointer;flex-shrink:0
+}
 </style>
 </head>
 <body>
@@ -408,6 +419,7 @@ body{background:var(--bg);color:#222;overflow:hidden;height:100dvh;width:100vw}
           <option value="">בחר גידול</option>
           <option value="avocado">אבוקדו</option>
           <option value="pomegranate">רימון</option>
+          <option value="jojoba">חוחובה</option>
         </select>
       </div>
       <div class="form-group">
@@ -487,19 +499,15 @@ body{background:var(--bg);color:#222;overflow:hidden;height:100dvh;width:100vw}
     <div class="form-scroll">
       <div class="form-group">
         <label>סוג דיווח</label>
-        <select id="filter-type"><option value="">הכל</option></select>
+        <div id="filter-types-list"></div>
       </div>
       <div class="form-group">
         <label>גידול</label>
-        <select id="filter-crop">
-          <option value="">הכל</option>
-          <option value="avocado">אבוקדו</option>
-          <option value="pomegranate">רימון</option>
-        </select>
+        <div id="filter-crops-list"></div>
       </div>
       <div class="form-group">
         <label>חלקה</label>
-        <select id="filter-plot"><option value="">הכל</option></select>
+        <div id="filter-plots-list" style="max-height:160px;overflow-y:auto"></div>
       </div>
       <div class="form-actions">
         <button class="btn-secondary" id="btn-filter-clear">נקה סינון</button>
@@ -516,24 +524,31 @@ body{background:var(--bg);color:#222;overflow:hidden;height:100dvh;width:100vw}
 <div id="modal-add-type" class="modal-overlay hidden">
   <div class="modal-sheet-center" style="margin:auto">
     <div class="modal-header">
-      <h2>סוג דיווח חדש</h2>
+      <h2>סוגי דיווח</h2>
       <button class="btn-x" id="btn-add-type-x">✕</button>
     </div>
     <div class="form-scroll">
       <div class="form-group">
-        <label>שם הסוג</label>
-        <input type="text" id="inp-type-name" placeholder="שם הסוג...">
+        <label>סוגים מותאמים אישית</label>
+        <div id="custom-types-list"></div>
       </div>
-      <div class="form-group">
-        <label>צבע לאייקון</label>
-        <input type="color" id="inp-type-color" value="#FF6B35" style="height:44px;padding:2px 4px">
-      </div>
-      <div class="form-actions">
-        <button class="btn-secondary" id="btn-add-type-cancel">ביטול</button>
-        <button class="btn-primary" id="btn-add-type-save">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="white"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
-          שמור
-        </button>
+      <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:4px">
+        <label style="display:block;font-size:13px;font-weight:600;color:var(--gray);margin-bottom:10px">הוסף סוג חדש</label>
+        <div class="form-group">
+          <label>שם הסוג</label>
+          <input type="text" id="inp-type-name" placeholder="שם הסוג...">
+        </div>
+        <div class="form-group">
+          <label>צבע לאייקון</label>
+          <input type="color" id="inp-type-color" value="#FF6B35" style="height:44px;padding:2px 4px">
+        </div>
+        <div class="form-actions">
+          <button class="btn-secondary" id="btn-add-type-cancel">ביטול</button>
+          <button class="btn-primary" id="btn-add-type-save">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="white"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+            הוסף
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -573,7 +588,7 @@ if('serviceWorker' in navigator){
 // ═══════════════════════════════════════════
 // VERSION
 // ═══════════════════════════════════════════
-const APP_VERSION = 'Build 3';
+const APP_VERSION = 'Build 4';
 const CHANGELOG = [
   { build:'Build 1', date:'17.04.2026', notes:[
     'תיקון כפתור "מחק" באישור מחיקה — לא הגיב ללחיצה',
@@ -620,10 +635,14 @@ const PLOTS = {
     'וונדרפול 1','וונדרפול 2','וונדרפול 3','וונדרפול 4','וונדרפול 5',
     'וונדרפול 6','וונדרפול 7','וונדרפול 8','וונדרפול 9א','וונדרפול 9ב',
     'וונדרפול 10א','עמק 10א'
+  ],
+  jojoba:[
+    '45','43','חוחובה מצבה אורגני','חוחובה 2015','חוחובה 2016',
+    'חוחובה 2020 נסיונות','חוחובה סונול'
   ]
 };
 
-const CROP_HEB = {avocado:'אבוקדו', pomegranate:'רימון'};
+const CROP_HEB = {avocado:'אבוקדו', pomegranate:'רימון', jojoba:'חוחובה'};
 
 // ═══════════════════════════════════════════
 // FIREBASE INIT
@@ -641,7 +660,7 @@ let currentUser       = null;
 let markers           = {};   // id -> google.maps.Marker
 let reports           = {};   // id -> data
 let customTypes       = [];   // [{id,name,color}]
-let filters           = {type:'', crop:'', plot:''};
+let filters           = {types:[], crops:[], plots:[]};
 let showDoneReports   = true;
 let editingId         = null;
 let formTimestamp     = null;
@@ -974,9 +993,9 @@ function removeMarker(id){
 
 function shouldShowReport(r){
   if(r.done && !showDoneReports) return false;
-  if(filters.type && r.type!==filters.type) return false;
-  if(filters.crop && r.crop!==filters.crop) return false;
-  if(filters.plot && r.plot!==filters.plot) return false;
+  if(filters.types.length && !filters.types.includes(r.type)) return false;
+  if(filters.crops.length && !filters.crops.includes(r.crop)) return false;
+  if(filters.plots.length && !filters.plots.includes(r.plot)) return false;
   return true;
 }
 
@@ -1166,25 +1185,52 @@ async function toggleDone(id){
 // FILTER
 // ═══════════════════════════════════════════
 function openFilterModal(){
-  populateFilterTypeSelect();
-  $id('filter-type').value=filters.type;
-  $id('filter-crop').value=filters.crop;
-  updateFilterPlotOptions(filters.crop);
-  setTimeout(()=>$id('filter-plot').value=filters.plot, 50);
+  renderFilterCheckboxes();
   show('modal-filter');
 }
 
-function updateFilterPlotOptions(crop){
-  const sel=$id('filter-plot');
-  sel.innerHTML='<option value="">הכל</option>';
-  if(!crop||!PLOTS[crop]) return;
-  PLOTS[crop].forEach(p=>{ const o=document.createElement('option'); o.value=p; o.textContent=p; sel.appendChild(o); });
+function renderFilterCheckboxes(){
+  // Types
+  const types=allTypes();
+  $id('filter-types-list').innerHTML=types.map(t=>`
+    <label class="filter-chk-row">
+      <input type="checkbox" value="${t.id}" ${filters.types.includes(t.id)?'checked':''}>
+      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${t.color};flex-shrink:0;margin-left:4px"></span>
+      ${t.name}
+    </label>`).join('');
+
+  // Crops
+  const crops=[{id:'avocado',name:'אבוקדו'},{id:'pomegranate',name:'רימון'},{id:'jojoba',name:'חוחובה'}];
+  $id('filter-crops-list').innerHTML=crops.map(c=>`
+    <label class="filter-chk-row">
+      <input type="checkbox" value="${c.id}" ${filters.crops.includes(c.id)?'checked':''}>
+      ${c.name}
+    </label>`).join('');
+
+  // Plots — based on currently checked crops (or all if none)
+  renderFilterPlotCheckboxes();
+
+  // Re-render plots when crop selection changes
+  $id('filter-crops-list').querySelectorAll('input').forEach(chk=>{
+    chk.addEventListener('change', renderFilterPlotCheckboxes);
+  });
+}
+
+function renderFilterPlotCheckboxes(){
+  const checkedCrops=Array.from($id('filter-crops-list').querySelectorAll('input:checked')).map(c=>c.value);
+  const activeCrops=checkedCrops.length ? checkedCrops : Object.keys(PLOTS);
+  const allPlots=[...new Set(activeCrops.flatMap(c=>PLOTS[c]||[]))];
+  $id('filter-plots-list').innerHTML=allPlots.map(p=>`
+    <label class="filter-chk-row">
+      <input type="checkbox" value="${p}" ${filters.plots.includes(p)?'checked':''}>
+      ${p}
+    </label>`).join('');
 }
 
 function applyFilter(){
-  filters.type=$id('filter-type').value;
-  filters.crop=$id('filter-crop').value;
-  filters.plot=$id('filter-plot').value;
+  filters.types=Array.from($id('filter-types-list').querySelectorAll('input:checked')).map(c=>c.value);
+  filters.crops=Array.from($id('filter-crops-list').querySelectorAll('input:checked')).map(c=>c.value);
+  filters.plots=Array.from($id('filter-plots-list').querySelectorAll('input:checked')).map(c=>c.value);
   hide('modal-filter');
   refreshMarkerVisibility();
   updateFilterBadge();
@@ -1192,20 +1238,17 @@ function applyFilter(){
 }
 
 function clearFilter(){
-  filters={type:'',crop:'',plot:''};
-  $id('filter-type').value='';
-  $id('filter-crop').value='';
-  $id('filter-plot').innerHTML='<option value="">הכל</option>';
+  filters={types:[],crops:[],plots:[]};
+  renderFilterCheckboxes();
   refreshMarkerVisibility();
   updateFilterBadge();
   saveUserFilters();
 }
 
 function updateFilterBadge(){
-  const active=Object.values(filters).some(v=>v!=='');
-  const badge=$id('filter-badge');
+  const active=filters.types.length||filters.crops.length||filters.plots.length;
   active ? show('filter-badge') : hide('filter-badge');
-  $id('btn-filter').classList.toggle('fab-active', active);
+  $id('btn-filter').classList.toggle('fab-active', !!active);
 }
 
 async function saveUserFilters(){
@@ -1219,7 +1262,15 @@ async function loadUserFilters(){
   if(!currentUser) return;
   try{
     const doc=await db.collection('users').doc(currentUser.uid).get();
-    if(doc.exists && doc.data().lastFilter) filters=doc.data().lastFilter;
+    if(doc.exists && doc.data().lastFilter){
+      const f=doc.data().lastFilter;
+      // Migrate old string format to array format
+      filters={
+        types: Array.isArray(f.types) ? f.types : [],
+        crops: Array.isArray(f.crops) ? f.crops : [],
+        plots: Array.isArray(f.plots) ? f.plots : [],
+      };
+    }
     if(doc.exists && doc.data().pinnedPlots) pinnedPlots=doc.data().pinnedPlots||[];
     updateFilterBadge();
   }catch(e){}
@@ -1390,10 +1441,39 @@ async function saveCustomType(){
   try{
     await db.collection('reportTypes').add({name, color, iconKey:'custom'});
     toast('סוג נוסף');
-    hide('modal-add-type');
     $id('inp-type-name').value='';
+    renderCustomTypesList();
   }catch(e){ toast('שגיאה: '+e.message); }
   finally{ hideSpinner(); }
+}
+
+async function deleteCustomType(id){
+  showConfirm('למחוק סוג דיווח זה?', async ()=>{
+    showSpinner();
+    try{
+      await db.collection('reportTypes').doc(id).delete();
+      toast('סוג נמחק');
+      renderCustomTypesList();
+    }catch(e){ toast('שגיאה: '+e.message); }
+    finally{ hideSpinner(); }
+  });
+}
+
+function renderCustomTypesList(){
+  const el=$id('custom-types-list');
+  if(!el) return;
+  if(!customTypes.length){
+    el.innerHTML='<div style="font-size:12px;color:#999;text-align:center;padding:8px">אין סוגים מותאמים אישית</div>';
+    return;
+  }
+  el.innerHTML=customTypes.map(t=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f0f0">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${t.color};flex-shrink:0"></span>
+        <span style="font-size:13px">${t.name}</span>
+      </div>
+      <button onclick="deleteCustomType('${t.id}')" style="background:none;border:none;color:#8A0909;font-size:18px;cursor:pointer;padding:0 4px;line-height:1">✕</button>
+    </div>`).join('');
 }
 
 // ═══════════════════════════════════════════
@@ -1410,7 +1490,6 @@ function populateTypeSelects(){
   if(prevType) selType.value=prevType;
 
   populateListTypeSelect();
-  populateFilterTypeSelect();
 }
 
 function populateListTypeSelect(){
@@ -1418,15 +1497,6 @@ function populateListTypeSelect(){
   const sel=$id('list-filter-type');
   const prev=sel.value;
   sel.innerHTML='<option value="">כל הסוגים</option>';
-  types.forEach(t=>{ const o=document.createElement('option'); o.value=t.id; o.textContent=t.name; sel.appendChild(o); });
-  sel.value=prev;
-}
-
-function populateFilterTypeSelect(){
-  const types=allTypes();
-  const sel=$id('filter-type');
-  const prev=sel.value;
-  sel.innerHTML='<option value="">הכל</option>';
   types.forEach(t=>{ const o=document.createElement('option'); o.value=t.id; o.textContent=t.name; sel.appendChild(o); });
   sel.value=prev;
 }
@@ -1569,7 +1639,6 @@ document.addEventListener('DOMContentLoaded',()=>{
   // Filter
   $id('btn-filter').addEventListener('click', ()=>{ closePopover(); openFilterModal(); });
   $id('btn-filter-x').addEventListener('click', ()=>hide('modal-filter'));
-  $id('filter-crop').addEventListener('change',()=>updateFilterPlotOptions($id('filter-crop').value));
   $id('btn-filter-apply').addEventListener('click', applyFilter);
   $id('btn-filter-clear').addEventListener('click', ()=>{ clearFilter(); hide('modal-filter'); });
 
@@ -1594,7 +1663,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   });
 
   // Add type
-  $id('btn-add-type').addEventListener('click',()=>{ closePopover(); show('modal-add-type'); });
+  $id('btn-add-type').addEventListener('click',()=>{ closePopover(); renderCustomTypesList(); show('modal-add-type'); });
   $id('btn-add-type-x').addEventListener('click',()=>hide('modal-add-type'));
   $id('btn-add-type-cancel').addEventListener('click',()=>hide('modal-add-type'));
   $id('btn-add-type-save').addEventListener('click', saveCustomType);
