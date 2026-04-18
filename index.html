@@ -588,7 +588,7 @@ if('serviceWorker' in navigator){
 // ═══════════════════════════════════════════
 // VERSION
 // ═══════════════════════════════════════════
-const APP_VERSION = 'Build 5';
+const APP_VERSION = 'Build 6';
 const CHANGELOG = [
   { build:'Build 1', date:'17.04.2026', notes:[
     'תיקון כפתור "מחק" באישור מחיקה — לא הגיב ללחיצה',
@@ -1251,7 +1251,7 @@ function applyFilter(){
   hide('modal-filter');
   refreshMarkerVisibility();
   updateFilterBadge();
-  saveUserFilters();
+  saveUserPrefs();
 }
 
 function clearFilter(){
@@ -1259,7 +1259,7 @@ function clearFilter(){
   renderFilterCheckboxes();
   refreshMarkerVisibility();
   updateFilterBadge();
-  saveUserFilters();
+  saveUserPrefs();
 }
 
 function updateFilterBadge(){
@@ -1268,28 +1268,52 @@ function updateFilterBadge(){
   $id('btn-filter').classList.toggle('fab-active', !!active);
 }
 
-async function saveUserFilters(){
+async function saveUserPrefs(){
   if(!currentUser) return;
   try{
-    await db.collection('users').doc(currentUser.uid).set({lastFilter:filters},{merge:true});
+    await db.collection('users').doc(currentUser.uid).set({
+      lastFilter: filters,
+      showDone: showDoneReports,
+      listSort: listSort,
+      pinnedPlots: pinnedPlots,
+    },{merge:true});
   }catch(e){}
 }
 
-async function loadUserFilters(){
+async function loadUserPrefs(){
   if(!currentUser) return;
   try{
     const doc=await db.collection('users').doc(currentUser.uid).get();
-    if(doc.exists && doc.data().lastFilter){
-      const f=doc.data().lastFilter;
-      // Migrate old string format to array format
+    const data=doc.exists ? doc.data() : {};
+
+    // Filters
+    if(data.lastFilter){
+      const f=data.lastFilter;
       filters={
         types: Array.isArray(f.types) ? f.types : [],
         crops: Array.isArray(f.crops) ? f.crops : [],
         plots: Array.isArray(f.plots) ? f.plots : [],
       };
     }
-    if(doc.exists && doc.data().pinnedPlots) pinnedPlots=doc.data().pinnedPlots||[];
     updateFilterBadge();
+
+    // Show/hide done reports
+    if(typeof data.showDone === 'boolean'){
+      showDoneReports=data.showDone;
+    }
+    $id('btn-toggle-done').classList.toggle('fab-active', !showDoneReports);
+
+    // List sort
+    if(data.listSort){
+      listSort=data.listSort;
+    }
+    document.querySelectorAll('.sort-btn').forEach(b=>{
+      b.classList.toggle('active', b.dataset.sort===listSort);
+    });
+
+    // Pinned plots
+    if(data.pinnedPlots) pinnedPlots=data.pinnedPlots||[];
+
   }catch(e){}
 }
 
@@ -1439,7 +1463,7 @@ async function togglePin(plot){
   if(!plot) return;
   const idx=pinnedPlots.indexOf(plot);
   if(idx>=0) pinnedPlots.splice(idx,1); else pinnedPlots.push(plot);
-  try{ await db.collection('users').doc(currentUser.uid).set({pinnedPlots},{merge:true}); }catch(e){}
+  saveUserPrefs();
   renderList();
 }
 
@@ -1585,7 +1609,7 @@ auth.onAuthStateChanged(user=>{
     currentUser=user;
     hide('screen-login');
     show('screen-map');
-    loadUserFilters();
+    loadUserPrefs();
     if(mapsReady) initMap();
   } else {
     currentUser=null;
@@ -1664,6 +1688,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     showDoneReports=!showDoneReports;
     $id('btn-toggle-done').classList.toggle('fab-active',!showDoneReports);
     refreshMarkerVisibility();
+    saveUserPrefs();
   });
 
   // List
@@ -1676,6 +1701,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       document.querySelectorAll('.sort-btn').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
       renderList();
+      saveUserPrefs();
     });
   });
 
