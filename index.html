@@ -588,7 +588,7 @@ if('serviceWorker' in navigator){
 // ═══════════════════════════════════════════
 // VERSION
 // ═══════════════════════════════════════════
-const APP_VERSION = 'Build 4';
+const APP_VERSION = 'Build 5';
 const CHANGELOG = [
   { build:'Build 1', date:'17.04.2026', notes:[
     'תיקון כפתור "מחק" באישור מחיקה — לא הגיב ללחיצה',
@@ -1207,24 +1207,41 @@ function renderFilterCheckboxes(){
       ${c.name}
     </label>`).join('');
 
-  // Plots — based on currently checked crops (or all if none)
-  renderFilterPlotCheckboxes();
+  // Plots — initial render uses saved state
+  renderFilterPlotCheckboxes(false);
 
-  // Re-render plots when crop selection changes
+  // Re-render plots when crop selection changes — auto-check all plots of newly selected crops
   $id('filter-crops-list').querySelectorAll('input').forEach(chk=>{
-    chk.addEventListener('change', renderFilterPlotCheckboxes);
+    chk.addEventListener('change', ()=>renderFilterPlotCheckboxes(true));
   });
 }
 
-function renderFilterPlotCheckboxes(){
+// fromCropChange=true  → auto-check ALL plots of selected crops (user just ticked a crop)
+// fromCropChange=false → restore saved filter.plots state (initial open or clear)
+function renderFilterPlotCheckboxes(fromCropChange){
   const checkedCrops=Array.from($id('filter-crops-list').querySelectorAll('input:checked')).map(c=>c.value);
-  const activeCrops=checkedCrops.length ? checkedCrops : Object.keys(PLOTS);
-  const allPlots=[...new Set(activeCrops.flatMap(c=>PLOTS[c]||[]))];
-  $id('filter-plots-list').innerHTML=allPlots.map(p=>`
-    <label class="filter-chk-row">
-      <input type="checkbox" value="${p}" ${filters.plots.includes(p)?'checked':''}>
+
+  if(!checkedCrops.length){
+    $id('filter-plots-list').innerHTML='<div style="font-size:12px;color:#aaa;padding:6px 4px">בחר גידול תחילה לסינון לפי חלקה</div>';
+    return;
+  }
+
+  const allPlots=[...new Set(checkedCrops.flatMap(c=>PLOTS[c]||[]))];
+
+  $id('filter-plots-list').innerHTML=allPlots.map(p=>{
+    let checked;
+    if(fromCropChange){
+      // Auto-check all: new crop selected = user wants to see everything, then exclude
+      checked=true;
+    } else {
+      // Initial open: restore saved state. If no saved plot filter → auto-check all
+      checked = filters.plots.length===0 || filters.plots.includes(p);
+    }
+    return `<label class="filter-chk-row">
+      <input type="checkbox" value="${p}" ${checked?'checked':''}>
       ${p}
-    </label>`).join('');
+    </label>`;
+  }).join('');
 }
 
 function applyFilter(){
