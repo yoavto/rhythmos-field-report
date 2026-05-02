@@ -617,7 +617,7 @@ if('serviceWorker' in navigator){
 // ═══════════════════════════════════════════
 // VERSION
 // ═══════════════════════════════════════════
-const APP_VERSION = 'Build 14';
+const APP_VERSION = 'Build 15';
 const CHANGELOG = [
   { build:'Build 1', date:'17.04.2026', notes:[
     'תיקון כפתור "מחק" באישור מחיקה — לא הגיב ללחיצה',
@@ -1107,8 +1107,8 @@ function openNewForm(){
 
   // Reset fields
   $id('sel-type').selectedIndex=0;
-  $id('sel-crop').value='';
-  $id('sel-plot').innerHTML='<option value="">— בחר גידול תחילה —</option>';
+  $id('sel-crop').value='avocado';
+  updatePlotOptions('avocado');
   $id('inp-notes').value='';
   photoFile=null; photoUrl=null;
   hide('photo-preview'); $id('photo-preview').src='';
