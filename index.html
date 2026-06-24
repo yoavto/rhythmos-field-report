@@ -763,6 +763,11 @@ function formatDate(ts){
   const d = ts.toDate ? ts.toDate() : new Date(ts);
   return d.toLocaleDateString('he-IL')+' '+d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
 }
+function formatDateOnly(ts){
+  if(!ts) return '—';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString('he-IL');
+}
 
 function allTypes(){
   return [...PREDEFINED_TYPES, ...customTypes];
@@ -1672,6 +1677,11 @@ async function doWhatsAppShare(langCode){
   try{
     const heText=buildShareText(selectedRpts);
     const translatedText=await translateText(heText, langCode);
+    if(navigator.share){
+      await navigator.share({ text: translatedText });
+    } else {
+      window.open('https://wa.me/?text='+encodeURIComponent(translatedText),'_blank');
+    }
     const batch=db.batch();
     selectedRpts.forEach(r=>{
       batch.update(db.collection('reports').doc(r.id),{
@@ -1682,11 +1692,6 @@ async function doWhatsAppShare(langCode){
     await batch.commit();
     selectedForDelete.clear();
     setListSelectMode(false);
-    if(navigator.share){
-      await navigator.share({ text: translatedText });
-    } else {
-      window.open('https://wa.me/?text='+encodeURIComponent(translatedText),'_blank');
-    }
     toast('הדיווחים סומנו כבטיפול');
   }catch(e){ toast('שגיאה: '+e.message); }
   finally{ hideSpinner(); }
@@ -1702,7 +1707,7 @@ async function doExcelExport(langCode){
       const locLink=r.location
         ? 'https://maps.google.com/?q='+r.location.latitude+','+r.location.longitude
         : '';
-      return { type:t.name, plot:r.plot||'', date:formatDate(r.timestamp), notes:r.notes||'', location:locLink };
+      return { type:t.name, plot:r.plot||'', date:formatDateOnly(r.timestamp), notes:r.notes||'', location:locLink };
     });
 
     let headers=['סוג בעיה','שם חלקה','תאריך דיווח','הערות','מיקום'];
@@ -1740,6 +1745,11 @@ async function doExcelExport(langCode){
     });
 
     ws['!cols']=[{wch:20},{wch:18},{wch:16},{wch:30},{wch:12}];
+    ws['!freeze']={ySplit:1};
+    headers.forEach((_,c)=>{
+      const addr=XLSX.utils.encode_cell({r:0,c});
+      if(ws[addr]) ws[addr].s={font:{bold:true}};
+    });
     XLSX.utils.book_append_sheet(wb,ws,'דיווחים');
     XLSX.writeFile(wb,'rhythmos_reports.xlsx');
 
