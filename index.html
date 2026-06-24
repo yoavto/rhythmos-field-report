@@ -489,6 +489,9 @@ body{background:var(--bg);color:#222;overflow:hidden;height:100dvh;width:100vw}
         <button id="btn-excel-export" class="btn-small" title="ייצא ל-Excel" style="background:rgba(255,255,255,.2);color:white;border:none;padding:6px 8px">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM8.4 17.2l-1.8-3 1.8-3H9.6l-1.2 2 1.2 2H8.4zm3.2 0H10.4l-1.2-2 1.2-2h1.2l-1.2 2 1.2 2zm3.6 0H13.8l-1.8-3 1.8-3h1.4l-1.2 2 1.2 2z"/></svg>
         </button>
+        <button id="btn-html-export" class="btn-small" title="ייצא ל-HTML" style="background:rgba(255,255,255,.2);color:white;border:none;padding:6px 8px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/><path d="M9 8h2v8H9zm4 0h2v8h-2z" fill="none"/><path d="M4 6h4v2H6v8h2v2H4V6zm16 0v12h-4v-2h2V8h-2V6h4z"/></svg>
+        </button>
       </div>
       <button id="btn-list-delete-selected" class="btn-small" style="background:rgba(255,255,255,.2);color:white;border:1.5px solid rgba(255,255,255,.5);font-weight:700">🗑 מחק</button>
     </div>
@@ -734,7 +737,7 @@ let pinnedReports      = [];
 let reportsUnsub      = null;
 let typesUnsub        = null;
 let pickerActive      = false;
-let exportMode        = 'whatsapp'; // 'whatsapp' | 'excel'
+let exportMode        = 'whatsapp'; // 'whatsapp' | 'excel' | 'html'
 let pickerListener    = null;
 let pickerTimer       = null;
 let backTimer         = null;
@@ -1768,6 +1771,102 @@ async function doExcelExport(langCode){
   finally{ hideSpinner(); }
 }
 
+async function doHtmlExport(langCode){
+  hide('modal-lang');
+  const selectedRpts=getSelectedReports();
+  if(!selectedRpts.length){ toast('לא נבחרו דיווחים'); return; }
+  showSpinner();
+  try{
+    const rows=selectedRpts.map(r=>{
+      const t=getType(r.type);
+      const locLink=r.location
+        ? 'https://maps.google.com/?q='+r.location.latitude+','+r.location.longitude
+        : '';
+      return { type:t.name, plot:r.plot||'', date:formatDateOnly(r.timestamp), notes:r.notes||'', location:locLink };
+    });
+
+    let headers=['סוג בעיה','שם חלקה','תאריך דיווח','הערות','מיקום'];
+
+    if(langCode!=='he'){
+      const heHeader=headers.join('\n');
+      const heText=rows.map(r=>[r.type,r.plot,r.notes].join('\n')).join('\n---\n');
+      const [trHeader,trText]=await Promise.all([
+        translateText(heHeader,langCode),
+        translateText(heText,langCode)
+      ]);
+      headers=trHeader.split('\n').slice(0,5);
+      const trBlocks=trText.split('\n---\n');
+      trBlocks.forEach((block,i)=>{
+        const parts=block.split('\n');
+        if(rows[i]){
+          rows[i].type=parts[0]||rows[i].type;
+          rows[i].plot=parts[1]||rows[i].plot;
+          rows[i].notes=parts[2]||rows[i].notes;
+        }
+      });
+    }
+
+    const isRtl=['he','ar'].includes(langCode);
+    const dir=isRtl?'rtl':'ltr';
+    const today=new Date();
+    const dateStr=today.getFullYear().toString()+
+      String(today.getMonth()+1).padStart(2,'0')+
+      String(today.getDate()).padStart(2,'0');
+
+    const rowsHtml=rows.map(r=>`
+      <tr>
+        <td>${r.type}</td><td>${r.plot}</td><td>${r.date}</td>
+        <td>${r.notes}</td>
+        <td>${r.location?`<a href="${r.location}">${headers[4]||'מיקום'}</a>`:''}</td>
+      </tr>`).join('');
+
+    const pageHtml=`<!DOCTYPE html>
+<html dir="${dir}" lang="${langCode}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rhythmos – ${dateStr}</title>
+<style>
+  body{font-family:Arial,sans-serif;direction:${dir};margin:20px;background:#f5f5f5;color:#222}
+  h2{color:#134F5C;margin-bottom:16px}
+  table{border-collapse:collapse;width:100%;background:white;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+  thead tr{background:#134F5C;color:white}
+  th{padding:10px 14px;text-align:${isRtl?'right':'left'};font-size:13px}
+  td{padding:9px 14px;font-size:13px;border-bottom:1px solid #eee;vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#f0f7f8}
+  a{color:#134F5C;font-weight:600}
+  .footer{margin-top:12px;font-size:11px;color:#999;text-align:center}
+</style>
+</head>
+<body>
+<h2>Rhythmos – ${dateStr}</h2>
+<table>
+  <thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+  <tbody>${rowsHtml}</tbody>
+</table>
+<div class="footer">Rhythmos Field Report</div>
+</body>
+</html>`;
+
+    const blob=new Blob([pageHtml],{type:'text/html;charset=utf-8'});
+    window.open(URL.createObjectURL(blob),'_blank');
+
+    const batch=db.batch();
+    selectedRpts.forEach(r=>{
+      batch.update(db.collection('reports').doc(r.id),{
+        inProgress:true,
+        inProgressAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+    await batch.commit();
+    selectedForDelete.clear();
+    setListSelectMode(false);
+    toast('הדיווחים יוצאו ל-HTML וסומנו כבטיפול');
+  }catch(e){ toast('שגיאה: '+e.message); }
+  finally{ hideSpinner(); }
+}
+
 // ═══════════════════════════════════════════
 function startPicker(){
   if(pickerTimer){ clearTimeout(pickerTimer); pickerTimer=null; }
@@ -2012,8 +2111,9 @@ document.addEventListener('DOMContentLoaded',()=>{
   // WhatsApp share
   $id('btn-whatsapp-share').addEventListener('click',()=>{ exportMode='whatsapp'; updateShareBtn(); show('modal-lang'); });
   $id('btn-excel-export').addEventListener('click',()=>{ exportMode='excel'; updateShareBtn(); show('modal-lang'); });
+  $id('btn-html-export').addEventListener('click',()=>{ exportMode='html'; updateShareBtn(); show('modal-lang'); });
   $id('btn-lang-x').addEventListener('click',()=>hide('modal-lang'));
-  const dispatchExport=lang=>exportMode==='excel'?doExcelExport(lang):doWhatsAppShare(lang);
+  const dispatchExport=lang=>exportMode==='excel'?doExcelExport(lang):exportMode==='html'?doHtmlExport(lang):doWhatsAppShare(lang);
   $id('btn-lang-he').addEventListener('click',()=>dispatchExport('he'));
   $id('btn-lang-en').addEventListener('click',()=>dispatchExport('en'));
   $id('btn-lang-th').addEventListener('click',()=>dispatchExport('th'));
