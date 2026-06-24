@@ -476,6 +476,9 @@ body{background:var(--bg);color:#222;overflow:hidden;height:100dvh;width:100vw}
     <div class="modal-header">
       <h2>רשימת דיווחים</h2>
       <div style="display:flex;gap:8px;align-items:center">
+        <button id="btn-excel-export" class="btn-small" title="ייצא נעוצים לאקסל" style="opacity:.35;pointer-events:none">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM8.4 17.2l-1.8-3 1.8-3H9.6l-1.2 2 1.2 2H8.4zm3.2 0H10.4l-1.2-2 1.2-2h1.2l-1.2 2 1.2 2zm3.6 0H13.8l-1.8-3 1.8-3h1.4l-1.2 2 1.2 2z"/></svg>
+        </button>
         <button id="btn-whatsapp-share" class="btn-small" title="שתף נעוצים בוואצאפ" style="opacity:.35;pointer-events:none">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
         </button>
@@ -483,7 +486,7 @@ body{background:var(--bg);color:#222;overflow:hidden;height:100dvh;width:100vw}
         <button class="btn-x" id="btn-list-x">✕</button>
       </div>
     </div>
-    <div id="list-delete-bar" class="hidden" style="background:#8A0909;color:white;padding:8px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+    <div id="list-delete-bar" class="hidden" style="background:#8A0909;color:white;padding:8px 16px;align-items:center;justify-content:space-between;gap:8px">
       <span id="list-select-count">0 נבחרו</span>
       <div style="display:flex;gap:8px">
         <button id="btn-list-delete-selected" class="btn-small" style="background:white;color:#8A0909;border:none;font-weight:700">מחק</button>
@@ -731,6 +734,7 @@ let pinnedReports      = [];
 let reportsUnsub      = null;
 let typesUnsub        = null;
 let pickerActive      = false;
+let exportMode        = 'whatsapp'; // 'whatsapp' | 'excel'
 let pickerListener    = null;
 let pickerTimer       = null;
 let backTimer         = null;
@@ -927,7 +931,6 @@ function initMap(){
   // Load reports
   listenToReports();
   listenToCustomTypes();
-  checkAutoDelete();
 }
 
 function updateMapTypeUI(type){
@@ -1060,18 +1063,7 @@ function refreshMarkerVisibility(){
   });
 }
 
-async function checkAutoDelete(){
-  try{
-    const cutoff = firebase.firestore.Timestamp.fromDate(new Date(Date.now()-48*3600*1000));
-    const snap = await db.collection('reports')
-      .where('done','==',true)
-      .where('doneAt','<',cutoff).get();
-    if(snap.empty) return;
-    const batch=db.batch();
-    snap.docs.forEach(d=>batch.delete(d.ref));
-    await batch.commit();
-  }catch(e){ console.warn('auto-delete error',e); }
-}
+
 
 // ═══════════════════════════════════════════
 // POPOVER
@@ -1391,6 +1383,7 @@ async function loadUserPrefs(){
 
     // Pinned plots
     if(data.pinnedReports) pinnedReports=data.pinnedReports||[];
+    updateShareBtn();
 
   }catch(e){}
 }
@@ -1535,6 +1528,7 @@ function setListSelectMode(on){
 
 function updateDeleteBar(){
   $id('list-select-count').textContent=selectedForDelete.size+' נבחרו';
+  updateShareBtn();
 }
 
 async function togglePin(id){
@@ -1630,12 +1624,16 @@ function getPinnedReports(){
   );
 }
 
+function getSelectedReports(){
+  return Object.values(reports).filter(r=>selectedForDelete.has(r.id));
+}
+
 function updateShareBtn(){
-  const btn=$id('btn-whatsapp-share');
-  if(!btn) return;
-  const hasPinned=getPinnedReports().length>0;
-  btn.style.opacity=hasPinned?'1':'0.35';
-  btn.style.pointerEvents=hasPinned?'':'none';
+  const hasSelected=selectedForDelete.size>0;
+  const wa=$id('btn-whatsapp-share');
+  const xl=$id('btn-excel-export');
+  if(wa){ wa.style.opacity=hasSelected?'1':'0.35'; wa.style.pointerEvents=hasSelected?'':'none'; }
+  if(xl){ xl.style.opacity=hasSelected?'1':'0.35'; xl.style.pointerEvents=hasSelected?'':'none'; }
 }
 
 function buildShareText(pinnedRpts){
@@ -1668,27 +1666,98 @@ async function translateText(text, targetLang){
 
 async function doWhatsAppShare(langCode){
   hide('modal-lang');
-  const pinnedRpts=getPinnedReports();
-  if(!pinnedRpts.length){ toast('אין דיווחים נעוצים'); return; }
+  const selectedRpts=getSelectedReports();
+  if(!selectedRpts.length){ toast('לא נבחרו דיווחים'); return; }
   showSpinner();
   try{
-    const heText=buildShareText(pinnedRpts);
+    const heText=buildShareText(selectedRpts);
     const translatedText=await translateText(heText, langCode);
-    // Mark all pinned reports as בטיפול
     const batch=db.batch();
-    pinnedRpts.forEach(r=>{
+    selectedRpts.forEach(r=>{
       batch.update(db.collection('reports').doc(r.id),{
         inProgress:true,
         inProgressAt:firebase.firestore.FieldValue.serverTimestamp()
       });
     });
     await batch.commit();
-    // Open WhatsApp
-    window.open('https://wa.me/?text='+encodeURIComponent(translatedText),'_blank');
+    selectedForDelete.clear();
+    setListSelectMode(false);
+    if(navigator.share){
+      await navigator.share({ text: translatedText });
+    } else {
+      window.open('https://wa.me/?text='+encodeURIComponent(translatedText),'_blank');
+    }
     toast('הדיווחים סומנו כבטיפול');
   }catch(e){ toast('שגיאה: '+e.message); }
   finally{ hideSpinner(); }
 }
+async function doExcelExport(langCode){
+  hide('modal-lang');
+  const selectedRpts=getSelectedReports();
+  if(!selectedRpts.length){ toast('לא נבחרו דיווחים'); return; }
+  showSpinner();
+  try{
+    const heRows=selectedRpts.map(r=>{
+      const t=getType(r.type);
+      const locLink=r.location
+        ? 'https://maps.google.com/?q='+r.location.latitude+','+r.location.longitude
+        : '';
+      return { type:t.name, plot:r.plot||'', date:formatDate(r.timestamp), notes:r.notes||'', location:locLink };
+    });
+
+    let headers=['סוג בעיה','שם חלקה','תאריך דיווח','הערות','מיקום'];
+
+    if(langCode!=='he'){
+      const heHeader=headers.join('\n');
+      const heText=heRows.map(r=>[r.type,r.plot,r.notes].join('\n')).join('\n---\n');
+      const [trHeader,trText]=await Promise.all([
+        translateText(heHeader,langCode),
+        translateText(heText,langCode)
+      ]);
+      headers=trHeader.split('\n').slice(0,5);
+      const trBlocks=trText.split('\n---\n');
+      trBlocks.forEach((block,i)=>{
+        const parts=block.split('\n');
+        if(heRows[i]){
+          heRows[i].type=parts[0]||heRows[i].type;
+          heRows[i].plot=parts[1]||heRows[i].plot;
+          heRows[i].notes=parts[2]||heRows[i].notes;
+        }
+      });
+    }
+
+    const wsData=[headers];
+    heRows.forEach(r=>wsData.push([r.type,r.plot,r.date,r.notes,r.location]));
+
+    const wb=XLSX.utils.book_new();
+    const ws=XLSX.utils.aoa_to_sheet(wsData);
+
+    heRows.forEach((r,i)=>{
+      if(r.location){
+        const cellAddr=XLSX.utils.encode_cell({r:i+1,c:4});
+        ws[cellAddr]={ v:langCode==='he'?'מיקום':'Location', l:{Target:r.location}, t:'s' };
+      }
+    });
+
+    ws['!cols']=[{wch:20},{wch:18},{wch:16},{wch:30},{wch:12}];
+    XLSX.utils.book_append_sheet(wb,ws,'דיווחים');
+    XLSX.writeFile(wb,'rhythmos_reports.xlsx');
+
+    const batch=db.batch();
+    selectedRpts.forEach(r=>{
+      batch.update(db.collection('reports').doc(r.id),{
+        inProgress:true,
+        inProgressAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+    await batch.commit();
+    selectedForDelete.clear();
+    setListSelectMode(false);
+    toast('הדיווחים יוצאו ל-Excel וסומנו כבטיפול');
+  }catch(e){ toast('שגיאה: '+e.message); }
+  finally{ hideSpinner(); }
+}
+
 // ═══════════════════════════════════════════
 function startPicker(){
   if(pickerTimer){ clearTimeout(pickerTimer); pickerTimer=null; }
@@ -1931,12 +2000,14 @@ document.addEventListener('DOMContentLoaded',()=>{
   $id('btn-pop-delete').addEventListener('click',()=>{ if(popoverReportId) deleteReport(popoverReportId); });
 
   // WhatsApp share
-  $id('btn-whatsapp-share').addEventListener('click',()=>{ updateShareBtn(); show('modal-lang'); });
+  $id('btn-whatsapp-share').addEventListener('click',()=>{ exportMode='whatsapp'; updateShareBtn(); show('modal-lang'); });
+  $id('btn-excel-export').addEventListener('click',()=>{ exportMode='excel'; updateShareBtn(); show('modal-lang'); });
   $id('btn-lang-x').addEventListener('click',()=>hide('modal-lang'));
-  $id('btn-lang-he').addEventListener('click',()=>doWhatsAppShare('he'));
-  $id('btn-lang-en').addEventListener('click',()=>doWhatsAppShare('en'));
-  $id('btn-lang-th').addEventListener('click',()=>doWhatsAppShare('th'));
-  $id('btn-lang-ar').addEventListener('click',()=>doWhatsAppShare('ar'));
+  const dispatchExport=lang=>exportMode==='excel'?doExcelExport(lang):doWhatsAppShare(lang);
+  $id('btn-lang-he').addEventListener('click',()=>dispatchExport('he'));
+  $id('btn-lang-en').addEventListener('click',()=>dispatchExport('en'));
+  $id('btn-lang-th').addEventListener('click',()=>dispatchExport('th'));
+  $id('btn-lang-ar').addEventListener('click',()=>dispatchExport('ar'));
   $id('btn-list-select').addEventListener('click',()=>setListSelectMode(!listSelectMode));
   $id('btn-list-delete-selected').addEventListener('click', deleteSelectedReports);
 
@@ -1954,6 +2025,7 @@ window.initMapCallback = function(){
   if(currentUser) initMap();
 };
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBR-YULE9PQCHzIEQGnllYaJ4jalSTD3IM&callback=initMapCallback&loading=async" defer></script>
 </body>
 </html>
